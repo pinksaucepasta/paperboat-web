@@ -159,7 +159,7 @@ export function DeviceAuthorization({ code }: { code: string | null }) {
               <div className="flex flex-col gap-4">
                 <StateAlert
                   title={error.status === 404 ? "Request not found" : error.status === 410 ? "Request expired" : error.status === 403 ? "Wrong account" : error.status === 409 ? "Request already handled" : "Could not load request"}
-                  description={error.status === 409 ? "This request was already approved or denied by another signed-in session or account. Return to your terminal and start sign-in again if needed." : error.status >= 500 || error.status === 0 ? "Paperboat could not load this request. Try again in a moment." : error.message}
+                  description={deviceErrorDescription(error)}
                 />
                 {error.status >= 500 || error.status === 0 ? <Button variant="outline" onClick={load}><HugeiconsIcon icon={RefreshIcon} data-icon="inline-start" />Try again</Button> : null}
               </div>
@@ -190,6 +190,15 @@ function LoadingState() {
 
 function StateAlert({ title, description }: { title: string; description: string }) {
   return <Alert><AlertTitle>{title}</AlertTitle><AlertDescription>{description}</AlertDescription></Alert>;
+}
+
+function deviceErrorDescription(error: ApiError) {
+  const description = error.status === 409
+    ? "This request was already approved or denied by another signed-in session or account. Return to your terminal and start sign-in again if needed."
+    : error.status >= 500 || error.status === 0
+      ? "Paperboat could not load this request. Try again in a moment."
+      : error.message;
+  return error.requestId ? `${description} Request ID: ${error.requestId}.` : description;
 }
 
 function ManualCodeForm({ onSubmit }: { onSubmit: (code: string) => boolean }) {
@@ -261,6 +270,20 @@ function RequestDetails({
         </div>
         <Badge variant="secondary">{request.user_code}</Badge>
       </div>
+      <Separator />
+      <dl className="grid gap-3 text-sm sm:grid-cols-2">
+        <div className="min-w-0">
+          <dt className="text-muted-foreground">Account</dt>
+          <dd className="truncate font-medium" title={request.account.email}>
+            {request.account.display_name || request.account.email}
+          </dd>
+          {request.account.display_name ? <dd className="truncate text-muted-foreground" title={request.account.email}>{request.account.email}</dd> : null}
+        </div>
+        <div className="min-w-0">
+          <dt className="text-muted-foreground">Server</dt>
+          <dd className="truncate font-mono text-xs" title={request.issuer}>{request.issuer}</dd>
+        </div>
+      </dl>
       <Separator />
       <div className="flex flex-col gap-3">
         <p className="text-sm font-medium">This device will be able to</p>

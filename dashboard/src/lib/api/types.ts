@@ -61,6 +61,12 @@ export interface DeviceRequest {
   issued_at: string;
   expires_at: string;
   state: DeviceRequestState;
+  issuer: string;
+  account: {
+    id: string;
+    email: string;
+    display_name: string;
+  };
 }
 
 export interface AuthorizedClient {
