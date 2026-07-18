@@ -1,24 +1,21 @@
-# Paperboat dashboard
-
-The authenticated Paperboat control panel. Users manage projects, connected machines,
-configuration repositories, usage, billing, and account settings through APIs owned by
-`paperboat-server`.
+# Coss Dashboard
 
 ## Development
 
-```sh
-bun install
-bun run dev
+This project uses pnpm 10.33.0. Install dependencies and start the development server:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm dev
 ```
 
-Before committing:
+The dashboard is available at [http://localhost:3000](http://localhost:3000).
 
-```sh
-bun run lint
-bun run typecheck
-bun run test
-bun run build
+## Checks
+
+```bash
+pnpm lint
+pnpm build
 ```
 
-See [AGENTS.md](AGENTS.md) and the repository-level [DESIGN.md](../DESIGN.md) before
-changing behavior or interface design.
+Use pnpm for all dependency and script commands so `pnpm-lock.yaml` remains the single source of truth.

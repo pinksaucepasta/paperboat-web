@@ -1,0 +1,24 @@
+# Dependencies
+**/node_modules/
+
+# Build and generated output
+**/.astro/
+**/.next/
+**/dist/
+**/out/
+**/build/
+**/coverage/
+**/*.tsbuildinfo
+
+# Environment and local configuration
+**/.env
+**/.env.*
+!**/.env.example
+
+# Logs and operating-system files
+**/*-debug.log*
+.DS_Store
+
+# Deployment and editor state
+**/.vercel/
+**/.idea/

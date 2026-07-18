@@ -26,5 +26,5 @@ move qualified developers directly to the dashboard.
 
 ## Verify
 
-Run `bun run build`. Verify desktop/mobile layouts, keyboard/focus, reduced motion, long
+Run `pnpm build`. Verify desktop/mobile layouts, keyboard/focus, reduced motion, long
 copy, production assets, links, metadata, structured data, sitemap, and hydration errors.

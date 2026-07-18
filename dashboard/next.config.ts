@@ -1,12 +1,11 @@
-import type { NextConfig } from "next";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   turbopack: {
-    root: projectRoot,
+    // A stray package-lock.json in the parent dir makes Next infer the wrong
+    // workspace root; pin it to this project.
+    root: path.resolve(__dirname),
   },
 };
 

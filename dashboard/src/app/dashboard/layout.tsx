@@ -1,0 +1,43 @@
+import { redirect } from "next/navigation";
+
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/dashboard/app-sidebar";
+import { TopNav } from "@/components/dashboard/top-nav";
+import { TrialPrompt } from "@/components/dashboard/trial-prompt";
+import { getMeServer } from "@/lib/api/me-server";
+
+export const dynamic = "force-dynamic";
+
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  // Gate the dashboard on a valid paperboat-server session (the server is the
+  // trust root). No session → send to /login. Read-only; the session is issued
+  // and rotated by the server via the BFF, never written here.
+  const me = await getMeServer();
+  if (!me) {
+    redirect("/login");
+  }
+
+  return (
+    <SidebarProvider className="bg-sidebar">
+      <TrialPrompt userId={me.id} />
+      <AppSidebar />
+      <SidebarInset className="min-w-0 overflow-clip md:m-2 md:ms-0 md:rounded-xl md:shadow-sm/5">
+        <TopNav
+          user={{
+            email: me.email,
+            firstName: me.display_name || null,
+            lastName: null,
+            profilePictureUrl: null,
+          }}
+        />
+        <main className="flex flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
+          {children}
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
+  );
+}
