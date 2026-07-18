@@ -1,0 +1,82 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { SiteHeader } from "@/components/site/site-header";
+import { HeroContent } from "@/components/site/hero-content";
+import { DitherImage } from "@/components/site/dither-image";
+import { AgentLogos } from "@/components/site/agent-logos";
+import { SiteFooter } from "@/components/site/site-footer";
+import { SectionIntro } from "@/components/site/section-intro";
+import { HowItWorks } from "@/components/site/how-it-works";
+import { TerminalDemo } from "@/components/site/terminal-demo";
+import { UseCases } from "@/components/site/use-cases";
+import { Architecture } from "@/components/site/architecture";
+import { FeatureSplits } from "@/components/site/feature-splits";
+import { PlatformGrid } from "@/components/site/platform-grid";
+import { Faq } from "@/components/site/faq";
+import { FinalCta } from "@/components/site/final-cta";
+---
+
+<Layout>
+	<div class="relative lg:grid lg:grid-cols-2">
+		<!-- Mobile: dither fills the screen as background + blue tint for text contrast -->
+		<div
+			class="absolute inset-0 bg-primary lg:hidden"
+			aria-hidden="true"
+		>
+			<div class="absolute inset-0">
+				<DitherImage client:only="react" />
+			</div>
+			<!-- Blue scrim keeps white text/boat legible over the dither -->
+			<div class="absolute inset-0 bg-primary/50"></div>
+		</div>
+
+		<!-- Hero content — overlays the dither on mobile, sits on white on desktop -->
+		<section
+			class="relative z-[1] flex min-h-[80vh] flex-col items-center justify-center pt-28 px-6 pb-16 text-center lg:min-h-[70vh] lg:items-start lg:justify-center lg:pt-24 lg:px-10 lg:py-0 lg:text-left"
+		>
+			<HeroContent client:load />
+		</section>
+
+		<!-- Desktop: dither as the right column -->
+		<section
+			class="relative hidden overflow-hidden bg-primary lg:block lg:min-h-[70vh]"
+		>
+			<DitherImage client:only="react" />
+		</section>
+
+		<!-- Header overlays the full width of the split -->
+		<div class="fixed inset-x-0 top-0 z-[60]">
+			<SiteHeader client:load />
+		</div>
+	</div>
+
+	<!-- Agent logo carousel below the hero -->
+	<section class="border-t border-border bg-background pt-10 pb-16 lg:pt-12 lg:pb-20">
+		<div class="mb-12 px-6 lg:mb-14">
+			<SectionIntro
+				client:visible
+				title="Bring your own agents"
+				description="Run Claude Code, Codex, OpenCode, Cursor, or your own, on the credentials you already pay for. No token resale."
+			/>
+		</div>
+		<AgentLogos client:visible />
+	</section>
+
+	<HowItWorks client:visible />
+
+	<TerminalDemo client:visible />
+
+	<UseCases client:visible />
+
+	<Architecture client:visible />
+
+	<FeatureSplits client:visible />
+
+	<PlatformGrid client:visible />
+
+	<Faq client:visible />
+
+	<FinalCta client:visible />
+
+	<SiteFooter client:visible />
+</Layout>
