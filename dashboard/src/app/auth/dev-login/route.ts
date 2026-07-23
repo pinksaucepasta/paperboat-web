@@ -15,6 +15,28 @@ export async function GET(req: Request): Promise<Response> {
     return new Response("Dev login is disabled.", { status: 404 });
   }
 
+  const seededSession = process.env.PAPERBOAT_DEV_SESSION_TOKEN;
+  const seededCSRF = process.env.PAPERBOAT_DEV_CSRF_TOKEN;
+  if (seededSession || seededCSRF) {
+    if (!seededSession || !seededCSRF) {
+      return new Response("Dev login session is incomplete.", { status: 500 });
+    }
+    const res = new Response(null, {
+      status: 302,
+      headers: { location: new URL("/dashboard", req.url).toString() },
+    });
+    const cookieOptions = "Path=/; SameSite=Lax; Max-Age=2592000";
+    res.headers.append(
+      "set-cookie",
+      `paperboat_session=${seededSession}; ${cookieOptions}; HttpOnly`,
+    );
+    res.headers.append(
+      "set-cookie",
+      `paperboat_csrf=${seededCSRF}; ${cookieOptions}`,
+    );
+    return res;
+  }
+
   const url = new URL(req.url);
   const email = url.searchParams.get("email") ?? "demo@paperboat.dev";
   const name = url.searchParams.get("name") ?? "Demo User";

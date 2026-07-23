@@ -30,6 +30,23 @@ export interface ConnectedMachine {
 
 export interface ConnectedMachineListResponse { items: ConnectedMachine[] }
 
+export interface Preview {
+  id: string;
+  environment_id: string;
+  project_id?: string;
+  machine_id?: string;
+  user_id?: string;
+  logical_name: string;
+  preview_key: string;
+  url: string;
+  target_port: number;
+  state: string;
+  environment_name: string;
+  environment_kind: "hosted" | "byod" | string;
+  owner_email: string;
+  expires_at?: string;
+}
+
 export interface ConnectedMachineOverview {
   entitlement_state: string;
   product_code?: string;
@@ -43,6 +60,45 @@ export interface ConnectedMachineOverview {
   consumed_topup_bytes: number;
   paid_topup_remaining_bytes: number;
   bootstrap_command?: string;
+}
+
+export type ConnectedMachineEnrollmentState =
+  | "awaiting_bootstrap"
+  | "awaiting_approval"
+  | "approved"
+  | "material_issued"
+  | "installing"
+  | "connecting"
+  | "ready"
+  | "cancelled"
+  | "expired"
+  | "denied"
+  | "failed_retryable"
+  | "revoked"
+  | "disconnected"
+  | "deleted";
+
+export interface ConnectedMachineEnrollment {
+  id: string;
+  operation_id: string;
+  state: ConnectedMachineEnrollmentState;
+  generation: number;
+  pairing_id?: string;
+  user_code?: string;
+  connected_machine_id?: string;
+  requested_display_name?: string;
+  platform?: string;
+  architecture?: string;
+  workspace_root?: string;
+  expires_at: string;
+  cancelled_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConnectedMachineEnrollmentStart extends ConnectedMachineEnrollment {
+  bootstrap_token: string;
+  bootstrap_command: string;
 }
 
 export type DeviceRequestState =

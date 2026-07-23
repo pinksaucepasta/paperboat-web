@@ -6,6 +6,7 @@ import {
   Settings01Icon,
   DashboardSquare01Icon,
   CloudServerIcon,
+  Globe02Icon,
 } from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
 
@@ -28,6 +29,7 @@ export const navGroups: NavGroup[] = [
       { title: "Overview", href: "/dashboard", icon: DashboardSquare01Icon },
       { title: "Projects", href: "/dashboard/projects", icon: Folder01Icon },
       { title: "Connected machines", href: "/dashboard/connected-machines", icon: CloudServerIcon },
+      { title: "Previews", href: "/dashboard/previews", icon: Globe02Icon },
       { title: "Configuration", href: "/dashboard/configuration", icon: Configuration01Icon },
     ],
   },

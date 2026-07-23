@@ -56,7 +56,6 @@ export function ProjectSettingsForm({ project }: { project: Project }) {
 
   React.useEffect(() => {
     let active = true;
-    setError(undefined);
     Promise.all([
       listCatalogMachineTypes(),
       listCatalogRegions(),
@@ -66,6 +65,7 @@ export function ProjectSettingsForm({ project }: { project: Project }) {
     ])
       .then(([machines, regions, presets, timeouts, usage]) => {
         if (!active) return;
+        setError(undefined);
         setOptions({
           machines: machines.filter((item) => item.active),
           regions: regions.filter((item) => item.enabled),

@@ -184,7 +184,7 @@ export default function BillingPage() {
     })).sort(
       (a, b) => Number(a.included_credits) - Number(b.included_credits),
     );
-  }, [planProducts.data, data?.plan_code, data?.trial_eligible]);
+  }, [planProducts.data]);
 
   async function openPortal(planCode: string | null = null) {
     if (!canOpenPortal) {
