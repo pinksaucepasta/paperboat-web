@@ -90,6 +90,7 @@ export function TopNav({ user }: { user: TopNavUser }) {
 
         <DropdownMenu>
           <DropdownMenuTrigger
+            nativeButton
             render={
               <button
                 aria-label="Account menu"
@@ -135,6 +136,7 @@ export function TopNav({ user }: { user: TopNavUser }) {
             <DropdownMenuSeparator />
             <form action="/auth/logout" method="post">
               <DropdownMenuItem
+                nativeButton
                 variant="destructive"
                 render={<button type="submit" className="w-full" />}
               >

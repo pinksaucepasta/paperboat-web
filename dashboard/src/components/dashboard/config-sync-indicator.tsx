@@ -8,9 +8,9 @@ import type { ConfigSyncState } from "@/lib/api/types";
 export function ConfigSyncIndicator({ projectId }: { projectId: string }) {
   const { data } = useConfigSyncStatus();
   if (!data) return null;
-  const machine = data.projects.find((item) => item.project_id === projectId);
-  if (!machine) return null;
-  return <ConfigSyncIndicatorView state={machine.state} />;
+  const environment = data.environments.find((item) => item.environment_id === projectId);
+  if (!environment) return null;
+  return <ConfigSyncIndicatorView state={environment.state} />;
 }
 
 export function ConfigSyncIndicatorView({ state }: { state: ConfigSyncState }) {

@@ -293,6 +293,8 @@ export interface ProjectEvent {
 }
 
 export type ConfigSyncState =
+  | "disabled"
+  | "consent_required"
   | "restoring"
   | "watching"
   | "pending"
@@ -302,46 +304,81 @@ export type ConfigSyncState =
   | "conflict"
   | "error"
   | "offline"
-  | "idle";
+  | "revoked"
+  | "sync_uncertain";
 
 export interface ConfigSyncPathSummary {
   path: string;
   bytes?: number;
   reason: string;
+  revision?: string;
 }
 
-export interface ConfigSyncMachineStatus {
-  project_id: string;
-  project_name: string;
-  project_state: ProjectState;
-  machine_id: string;
+export interface ConfigSyncEnvironmentStatus {
+  environment_id: string;
+  display_name: string;
+  profile: "hosted" | "byod";
+  environment_state: string;
   state: ConfigSyncState;
-  last_result_state?: ConfigSyncState;
+  assignment_id?: string;
+  assignment_version?: number;
+  repository_id?: string;
+  repository_name?: string;
+  consent_state?: "not_required" | "pending" | "accepted" | "stale" | "revoked";
+  warning_revision?: string;
+  helper_id?: string;
+  helper_generation?: number;
   last_attempt_at?: string;
   last_successful_sync_at?: string;
-  remote_commit?: string;
+  updated_at?: string;
+  remote_revision?: string;
   pending_path_count: number;
-  classifier_pending?: ConfigSyncPathSummary[];
+  classifier_pending: ConfigSyncPathSummary[];
   skipped: ConfigSyncPathSummary[];
   conflicts: ConfigSyncPathSummary[];
   error_code?: string;
-  error_message?: string;
-  heartbeat_at?: string;
-  status_updated_at?: string;
-  max_file_bytes: number;
-  max_batch_bytes: number;
-  policy_revision: string;
-  classifier_policy_revision?: string;
-  classifier_model_revision?: string;
-  classifier_health?: "healthy" | "degraded" | "unavailable" | "disabled";
-  encryption_key_version?: number;
+  recovery_actions: string[];
+  policy_revision?: string;
+  key_version?: number;
+  sync_revision?: number;
 }
 
 export interface ConfigSyncStatus {
-  repository: { owner: string; name: string; branch: string; web_url: string };
-  policy: { revision: string; max_file_bytes: number; max_batch_bytes: number; format: string; mandatory_exclusions: string[] };
+  policy: { mode: "disabled" | "read_only" | "leased_writes"; byod_enabled: boolean; revision: string; max_file_bytes: number; max_batch_bytes: number; format: string; mandatory_exclusions: string[] };
   state: ConfigSyncState;
-  projects: ConfigSyncMachineStatus[];
+  environments: ConfigSyncEnvironmentStatus[];
+}
+
+export interface ConfigRepository {
+  id: string;
+  provider: "github";
+  external_ref: string;
+  display_name: string;
+  state: "active" | "disconnected" | "inaccessible" | "quarantined";
+}
+
+export interface ConfigAssignment {
+  id: string;
+  environment_id: string;
+  repository_id?: string;
+  consent_state: "not_required" | "pending" | "accepted" | "stale" | "revoked";
+  warning_revision?: string;
+  version: number;
+}
+
+export interface ConfigWarningFacts {
+  revision: string;
+  machine_name: string;
+  repository_name: string;
+  canonical_scope: string;
+  file_categories: string[];
+  encrypted: boolean;
+  automatic_pull_and_push: boolean;
+  conflict_behavior: string;
+  disable_action: string;
+  offline_behavior: string;
+  recovery_consequence: string;
+  classifier_metadata_disclosure: string;
 }
 
 export type ConfigClassificationDecision = "portable" | "project_only" | "exclude";

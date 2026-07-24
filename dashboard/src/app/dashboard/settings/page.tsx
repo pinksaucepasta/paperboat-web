@@ -2,12 +2,12 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   GithubIcon,
   CheckmarkCircle02Icon,
-  GitBranchIcon,
 } from "@hugeicons/core-free-icons";
 
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,6 @@ import { getMe } from "@/lib/api/me";
 import {
   getGitHubStatus,
   startGitHubOAuth,
-  provisionConfigRepo,
 } from "@/lib/api/github";
 import type { GitHubStatus, Me } from "@/lib/api/types";
 
@@ -88,7 +87,6 @@ function GitHubCard({
   status: ReturnType<typeof useApi<GitHubStatus>>;
 }) {
   const [connecting, setConnecting] = React.useState(false);
-  const [provisioning, setProvisioning] = React.useState(false);
   const data = status.data;
   const missingScopes = data?.missing_scopes ?? [];
 
@@ -106,20 +104,6 @@ function GitHubCard({
     }
   }
 
-  async function provision() {
-    setProvisioning(true);
-    try {
-      await provisionConfigRepo();
-      toast.success("Config repository provisioned.");
-      status.refresh();
-    } catch (err) {
-      const message = err instanceof ApiError ? err.message : "Something went wrong.";
-      toast.error("Couldn't provision config repo.", { description: message });
-    } finally {
-      setProvisioning(false);
-    }
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -129,8 +113,8 @@ function GitHubCard({
             GitHub
           </CardTitle>
           <CardDescription>
-            Connect GitHub so Paperboat can clone your repos and manage your private
-            config repository.
+            Authorize your GitHub identity here. Configuration repositories are
+            selected separately on the Configuration page.
           </CardDescription>
         </div>
         {data?.connected ? (
@@ -159,31 +143,14 @@ function GitHubCard({
           </Button>
         ) : (
           <div className="space-y-4">
-            {data.config_repo_provisioned ? (
-              <div className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm">
-                <span className="flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                  <HugeiconsIcon icon={GitBranchIcon} className="size-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate font-medium">
-                    {data.config_repo_owner}/{data.config_repo_name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Config repo · {data.config_repo_branch}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between gap-4 rounded-lg border border-dashed border-border p-3">
-                <p className="text-sm text-muted-foreground">
-                  Your private config repository isn&apos;t provisioned yet.
-                </p>
-                <Button size="sm" onClick={provision} disabled={provisioning}>
-                  {provisioning ? <Spinner className="size-4" /> : null}
-                  Provision
-                </Button>
-              </div>
-            )}
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
+              <p className="text-sm text-muted-foreground">
+                Connecting GitHub does not choose or enable a configuration repository.
+              </p>
+              <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/dashboard/configuration" />}>
+                Choose repositories
+              </Button>
+            </div>
             {missingScopes.length > 0 ? (
               <p className="text-xs text-amber-600 dark:text-amber-400">
                 Missing scopes: {missingScopes.join(", ")}. Reconnect to grant them.

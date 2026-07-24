@@ -3,18 +3,27 @@ import { serverBaseUrl, CSRF_COOKIE } from "@/lib/api/server";
 /**
  * GitHub redirects here with `?code&state` after the user authorizes. We forward
  * both to the server's CSRF-protected `/api/github/oauth/callback` (relaying the
- * session, oauth-state, and CSRF cookies), then return to Settings.
+ * session, oauth-state, and CSRF cookies), then return to the initiating
+ * dashboard surface.
  */
 export async function GET(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  const redirectUri = url.origin + "/github/callback";
-  const settings = new URL("/dashboard/settings", req.url);
+  const returnTo = url.searchParams.get("return_to");
+  const isConfiguration = returnTo === "configuration";
+  const redirectUri =
+    url.origin +
+    "/github/callback" +
+    (isConfiguration ? "?return_to=configuration" : "");
+  const destination = new URL(
+    isConfiguration ? "/dashboard/configuration" : "/dashboard/settings",
+    req.url,
+  );
 
   if (!code || !state) {
-    settings.searchParams.set("github", "error");
-    return Response.redirect(settings, 302);
+    destination.searchParams.set("github", "error");
+    return Response.redirect(destination, 302);
   }
 
   const cookieHeader = req.headers.get("cookie") ?? "";
@@ -34,10 +43,10 @@ export async function GET(req: Request): Promise<Response> {
     cache: "no-store",
   });
 
-  settings.searchParams.set("github", serverRes.ok ? "connected" : "error");
+  destination.searchParams.set("github", serverRes.ok ? "connected" : "error");
   const res = new Response(null, {
     status: 302,
-    headers: { location: settings.toString() },
+    headers: { location: destination.toString() },
   });
   for (const cookie of serverRes.headers.getSetCookie()) {
     res.headers.append("set-cookie", cookie);

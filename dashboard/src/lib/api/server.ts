@@ -76,7 +76,16 @@ export function relayResponse(serverRes: Response, body: BodyInit | null): Respo
   const res = new Response(body, { status: serverRes.status, headers });
   // `getSetCookie` returns each Set-Cookie header separately (Node/undici).
   for (const cookie of serverRes.headers.getSetCookie()) {
-    res.headers.append("set-cookie", cookie);
+    // The production API correctly emits Secure cookies. A local HTTP
+    // dashboard can only persist them during the explicitly enabled dev-login
+    // workflow, so remove Secure in development only. Production and preview
+    // builds always relay the cookie unchanged.
+    const relayedCookie =
+      process.env.NODE_ENV === "development" &&
+      process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN === "true"
+        ? cookie.replace(/;\s*Secure(?=;|$)/gi, "")
+        : cookie;
+    res.headers.append("set-cookie", relayedCookie);
   }
   return res;
 }
