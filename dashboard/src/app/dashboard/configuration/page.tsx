@@ -143,16 +143,18 @@ export function ConfigurationStatusView({
   );
   const classifierPending = flattenSummaries(data.environments, "classifier_pending");
 
-  async function mutate(key: string, operation: () => Promise<unknown>, success: string) {
+  async function mutate(key: string, operation: () => Promise<unknown>, success: string): Promise<boolean> {
     setBusy(key);
     try {
       await operation();
       toast.success(success);
       refresh();
+      return true;
     } catch (error) {
       toast.error("Configuration could not be changed.", {
         description: error instanceof Error ? error.message : "Please refresh and try again.",
       });
+      return false;
     } finally {
       setBusy(undefined);
     }
@@ -176,8 +178,9 @@ export function ConfigurationStatusView({
   async function connectRepository() {
     const candidate = connectable.find((item) => item.external_id === selectedCandidate);
     if (!candidate) return;
-    await mutate(`connect:${candidate.external_id}`, () => connectConfigRepository(candidate), `${candidate.display_name} connected.`);
-    setSelectedCandidate("");
+    if (await mutate(`connect:${candidate.external_id}`, () => connectConfigRepository(candidate), `${candidate.display_name} connected.`)) {
+      setSelectedCandidate("");
+    }
   }
 
   async function assign(environment: ConfigSyncEnvironmentStatus, repositoryID: string) {
@@ -231,7 +234,7 @@ export function ConfigurationStatusView({
 
   async function acceptWarning() {
     if (!warning || !accepted) return;
-    await mutate(
+    const enabled = await mutate(
       `consent:${warning.environment.environment_id}`,
       () => acceptConfigConsent(
         warning.environment.environment_id,
@@ -240,7 +243,7 @@ export function ConfigurationStatusView({
       ),
       `Configuration sync enabled on ${warning.facts.machine_name}.`,
     );
-    setWarning(undefined);
+    if (enabled) setWarning(undefined);
   }
 
   async function resolveConflict(
@@ -499,7 +502,7 @@ export function ConfigurationStatusView({
                   `disconnect:${disconnecting.id}`,
                   () => disconnectConfigRepository(disconnecting.id),
                   `${disconnecting.display_name} disconnected.`,
-                ).then(() => setDisconnecting(undefined));
+                ).then((disconnected) => { if (disconnected) setDisconnecting(undefined); });
               }}
             >
               Disconnect
@@ -539,6 +542,7 @@ function ConsentDialog({
             <ul className="space-y-2 text-muted-foreground">
               <li>{facts.conflict_behavior}</li>
               <li>{facts.offline_behavior}</li>
+              <li>{facts.disable_action}</li>
               <li>{facts.classifier_metadata_disclosure}</li>
               <li>{facts.recovery_consequence}</li>
             </ul>
