@@ -630,7 +630,7 @@ function SecurityPanel({ data }: { data: ConfigSyncStatus }) {
   const keyVersion = Math.max(0, ...data.environments.map((item) => item.key_version ?? 0));
   React.useEffect(() => {
     const purpose = new URLSearchParams(window.location.search).get("reauthenticated");
-    if (!purpose) return;
+    if (purpose !== "config_recovery_export" && purpose !== "config_key_rotation") return;
     window.history.replaceState({}, "", window.location.pathname);
     const operation = purpose === "config_recovery_export"
       ? exportConfigRecoveryKey().then(setRecovery)
