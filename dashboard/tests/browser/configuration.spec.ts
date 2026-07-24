@@ -23,7 +23,7 @@ test("requires the current named BYOD warning before enabling sync", async ({ pa
   await expect(dialog).toContainText("/home/sailor");
   await expect(dialog).toContainText("Normalized relative paths and bounded file metadata");
   await expect(dialog).toContainText("Offline changes remain local");
-  await expect(dialog).toContainText("Remove consent or assignment to stop synchronization immediately");
+  await expect(dialog).toContainText("Remove consent or unassign the repository to stop synchronization immediately");
 
   const confirm = dialog.getByRole("button", { name: "Accept and enable" });
   await expect(confirm).toBeDisabled();
