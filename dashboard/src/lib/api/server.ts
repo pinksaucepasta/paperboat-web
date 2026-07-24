@@ -23,6 +23,47 @@ export const SESSION_COOKIE = "paperboat_session";
 export const CSRF_COOKIE = "paperboat_csrf";
 export const OAUTH_STATE_COOKIE = "paperboat_oauth_state";
 
+const SAFE_READ_ATTEMPTS = 3;
+const SAFE_READ_ATTEMPT_TIMEOUT_MS = 5_000;
+
+/**
+ * Fetch the control plane. Safe reads retry bounded network failures because no
+ * mutation can become uncertain. Mutations are attempted exactly once.
+ */
+export async function fetchPaperboatServer(
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1],
+): Promise<Response> {
+  const method = (
+    input instanceof Request ? input.method : (init?.method ?? "GET")
+  ).toUpperCase();
+  const safeRead = method === "GET" || method === "HEAD";
+  const attempts = safeRead ? SAFE_READ_ATTEMPTS : 1;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const attemptSignal = safeRead
+      ? AbortSignal.timeout(SAFE_READ_ATTEMPT_TIMEOUT_MS)
+      : undefined;
+    try {
+      if (input instanceof Request) {
+        const request = input.clone();
+        return await fetch(
+          attemptSignal ? new Request(request, { signal: attemptSignal }) : request,
+        );
+      }
+      return await fetch(input, {
+        ...init,
+        signal: attemptSignal ?? init?.signal,
+      });
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+}
+
 /** Request/response headers we forward through the proxy (allowlist, lowercased). */
 export const FORWARDED_REQUEST_HEADERS = [
   "content-type",

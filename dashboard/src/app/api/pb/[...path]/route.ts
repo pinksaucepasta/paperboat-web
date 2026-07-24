@@ -1,4 +1,8 @@
-import { buildServerRequest, relayResponse } from "@/lib/api/server";
+import {
+  buildServerRequest,
+  fetchPaperboatServer,
+  relayResponse,
+} from "@/lib/api/server";
 
 /**
  * BFF proxy: forwards `/api/pb/<path>` to paperboat-server at `/<path>`,
@@ -29,7 +33,7 @@ async function handle(
 
   let serverRes: Response;
   try {
-    serverRes = await fetch(outbound);
+    serverRes = await fetchPaperboatServer(outbound);
   } catch {
     return Response.json(
       {
