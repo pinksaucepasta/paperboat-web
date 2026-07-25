@@ -46,7 +46,7 @@ export async function GET(req: Request): Promise<Response> {
   const base = serverBaseUrl();
 
   // 1. Ask the server to mint an OAuth state (sets the oauth-state cookie).
-  const stateRes = await fetch(base + "/api/auth/workos/state", {
+  const stateRes = await fetch(base + "/v1/auth/workos/state", {
     cache: "no-store",
   });
   if (!stateRes.ok) {
@@ -56,7 +56,7 @@ export async function GET(req: Request): Promise<Response> {
   const oauthCookies = stateRes.headers.getSetCookie();
 
   // 2. Complete the callback with the synthetic code, forwarding the state cookie.
-  const callbackRes = await fetch(base + "/api/auth/workos/callback", {
+  const callbackRes = await fetch(base + "/v1/auth/workos/callback", {
     method: "POST",
     headers: {
       "content-type": "application/json",

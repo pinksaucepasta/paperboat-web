@@ -13,7 +13,7 @@ export interface Me {
   workos_subject: string;
 }
 
-export interface ConnectedMachine {
+export interface UserMachine {
   id: string;
   environment_id: string;
   display_name: string;
@@ -28,13 +28,13 @@ export interface ConnectedMachine {
   last_seen_at?: string;
 }
 
-export interface ConnectedMachineListResponse { items: ConnectedMachine[] }
+export interface UserMachineListResponse { items: UserMachine[] }
 
 export interface Preview {
   id: string;
   environment_id: string;
   project_id?: string;
-  machine_id?: string;
+  resource_id?: string;
   user_id?: string;
   logical_name: string;
   preview_key: string;
@@ -47,7 +47,7 @@ export interface Preview {
   expires_at?: string;
 }
 
-export interface ConnectedMachineOverview {
+export interface UserMachineOverview {
   entitlement_state: string;
   product_code?: string;
   period_start?: string;
@@ -62,7 +62,7 @@ export interface ConnectedMachineOverview {
   bootstrap_command?: string;
 }
 
-export type ConnectedMachineEnrollmentState =
+export type UserMachineEnrollmentState =
   | "awaiting_bootstrap"
   | "awaiting_approval"
   | "approved"
@@ -78,14 +78,14 @@ export type ConnectedMachineEnrollmentState =
   | "disconnected"
   | "deleted";
 
-export interface ConnectedMachineEnrollment {
+export interface UserMachineEnrollment {
   id: string;
   operation_id: string;
-  state: ConnectedMachineEnrollmentState;
+  state: UserMachineEnrollmentState;
   generation: number;
   pairing_id?: string;
   user_code?: string;
-  connected_machine_id?: string;
+  user_machine_id?: string;
   requested_display_name?: string;
   platform?: string;
   architecture?: string;
@@ -96,7 +96,7 @@ export interface ConnectedMachineEnrollment {
   updated_at: string;
 }
 
-export interface ConnectedMachineEnrollmentStart extends ConnectedMachineEnrollment {
+export interface UserMachineEnrollmentStart extends UserMachineEnrollment {
   bootstrap_token: string;
   bootstrap_command: string;
 }
@@ -125,8 +125,8 @@ export interface DeviceRequest {
   };
 }
 
-export interface AuthorizedClient {
-  client_session_id: string;
+export interface CLIClientSession {
+  cli_client_session_id: string;
   client_id: "paperboat-cli";
   client_label: string;
   device_type: "desktop" | "server" | "container";
@@ -141,8 +141,8 @@ export interface AuthorizedClient {
   current: boolean;
 }
 
-export interface AuthorizedClientList {
-  items: AuthorizedClient[];
+export interface CLIClientSessionList {
+  items: CLIClientSession[];
   pagination: {
     limit: number;
     offset: number;

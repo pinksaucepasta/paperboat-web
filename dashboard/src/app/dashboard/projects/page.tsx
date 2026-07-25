@@ -82,7 +82,7 @@ export default function ProjectsPage() {
       <PageHeader
         eyebrow="Workspace"
         title="Projects"
-        description="Each project is one cloud machine and volume, cloned from your repo and reachable from anywhere through agentunnel."
+        description="Each project is one managed machine and volume, cloned from your repository and reachable through Paperboat."
         actions={
           <Button
             size="lg"

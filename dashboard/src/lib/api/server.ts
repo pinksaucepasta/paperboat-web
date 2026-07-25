@@ -76,7 +76,7 @@ export const FORWARDED_REQUEST_HEADERS = [
 
 /**
  * Build the outbound request to the server for a given proxied path.
- * `path` already includes the leading `/api/...` segment.
+ * `path` already includes the leading `/v1/...` segment.
  */
 export function buildServerRequest(
   path: string,

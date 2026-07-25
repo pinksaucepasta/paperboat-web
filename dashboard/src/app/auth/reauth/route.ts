@@ -11,7 +11,7 @@ export async function GET(req: Request): Promise<Response> {
   const redirectUri = process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI;
   const authorizeBase = process.env.WORKOS_AUTHORIZE_URL ?? "https://api.workos.com/user_management/authorize";
   if (!clientId || !redirectUri) return new Response("Auth is not configured.", { status: 500 });
-  const stateRes = await fetch(serverBaseUrl() + `/api/auth/workos/reauth/state?purpose=${encodeURIComponent(purpose)}`, { headers: { cookie: req.headers.get("cookie") ?? "" }, cache: "no-store" });
+  const stateRes = await fetch(serverBaseUrl() + `/v1/auth/workos/reauth/state?purpose=${encodeURIComponent(purpose)}`, { headers: { cookie: req.headers.get("cookie") ?? "" }, cache: "no-store" });
   if (!stateRes.ok) return new Response("Could not start reauthentication.", { status: 502 });
   const { data } = (await stateRes.json()) as { data: { state: string } };
   const url = new URL(authorizeBase);

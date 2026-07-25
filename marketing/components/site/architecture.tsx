@@ -4,7 +4,7 @@ import { container, item, viewportOnce } from "@/components/site/motion";
 import { SectionIntro } from "@/components/site/section-intro";
 
 /**
- * The platform, drawn honestly: clients on one side, the agentunnel relay in
+ * The platform, drawn honestly: clients on one side, the Paperboat edge in
  * the middle, per-project VMs (machine + volume) on the other — exactly the
  * topology in USERSTORY.md.
  *
@@ -114,13 +114,13 @@ function TunnelNode({ x, y }: { x: number; y: number }) {
         <path d="M6 14 C6 9 9 6 14 6 C19 6 22 9 22 14" opacity="0.55" />
         <path d="M11 14 C11 12 12 11 14 11 C16 11 17 12 17 14" opacity="0.3" />
       </g>
-      <text x="75" y="50" textAnchor="middle" fontSize="12.5" fill="var(--foreground)" style={LABEL}>agentunnel</text>
+      <text x="75" y="50" textAnchor="middle" fontSize="12.5" fill="var(--foreground)" style={LABEL}>Paperboat edge</text>
     </g>
   );
 }
 
 const A11Y_LABEL =
-  "Diagram: every client connects through the agentunnel relay to per-project VMs, with the control plane authorizing connections outside the data path";
+  "Diagram: every client connects through the Paperboat edge to project environments, with the control plane authorizing connections outside the data path";
 
 /** Landscape (md and up): clients left, tunnel center, projects right. */
 function DiagramWide() {
@@ -146,7 +146,7 @@ function DiagramWide() {
         </Client>
       ))}
 
-      {/* ---- agentunnel (the hero) ---- */}
+      {/* Paperboat edge */}
       <TunnelNode x={325} y={150} />
 
       {/* ---- projects (repo icon + name + status) ---- */}
@@ -204,7 +204,7 @@ export function Architecture() {
       <div className="mx-auto w-full max-w-7xl">
         <SectionIntro
           title="One tunnel between you and your agents"
-          description="Every client reaches your projects through one agentunnel tunnel. Nothing on your VM is exposed as a public port."
+          description="Every client reaches your environments through the authenticated Paperboat edge. Nothing on your machine is exposed as a public port."
         />
 
         <motion.div

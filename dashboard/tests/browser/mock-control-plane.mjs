@@ -114,21 +114,21 @@ const server = createServer(async (request, response) => {
     staleConsentMutation = true;
     return success(response, { stale: true });
   }
-  if (path === "/api/me") {
+  if (path === "/v1/me") {
     return success(response, {
       id: "usr_browser_test",
       email: "sailor@example.test",
       display_name: "Sailor",
     });
   }
-  if (path === "/api/billing/entitlement") {
+  if (path === "/v1/billing/entitlement") {
     return success(response, { trial_eligible: false });
   }
-  if (path === "/api/billing/plan-products") return success(response, []);
-  if (path === "/api/config-repositories" && request.method === "GET") {
+  if (path === "/v1/billing/plan-products") return success(response, []);
+  if (path === "/v1/config-repositories" && request.method === "GET") {
     return success(response, { items: [repository] });
   }
-  if (path === "/api/config-repositories/candidates") {
+  if (path === "/v1/config-repositories/candidates") {
     return success(response, {
       items: [
         {
@@ -140,7 +140,7 @@ const server = createServer(async (request, response) => {
       ],
     });
   }
-  if (path === "/api/config-sync/status") {
+  if (path === "/v1/config-sync/status") {
     const environments = [hosted, byod];
     return success(response, {
       policy: {
@@ -156,9 +156,9 @@ const server = createServer(async (request, response) => {
       environments,
     });
   }
-  if (path === "/api/config-sync/overrides") return success(response, []);
+  if (path === "/v1/config-sync/overrides") return success(response, []);
   if (
-    path === "/api/environments/env_byod/config-assignment" &&
+    path === "/v1/environments/env_byod/config-assignment" &&
     request.method === "PUT"
   ) {
     const body = await readJSON(request);
@@ -183,11 +183,11 @@ const server = createServer(async (request, response) => {
       version: 1,
     });
   }
-  if (path === "/api/environments/env_byod/config-assignment/warning") {
+  if (path === "/v1/environments/env_byod/config-assignment/warning") {
     return success(response, warning);
   }
   if (
-    path === "/api/environments/env_byod/config-assignment/consent" &&
+    path === "/v1/environments/env_byod/config-assignment/consent" &&
     request.method === "POST"
   ) {
     const body = await readJSON(request);
@@ -216,7 +216,7 @@ const server = createServer(async (request, response) => {
     });
   }
   if (
-    path === "/api/config-sync/environments/env_hosted/conflict-resolutions" &&
+    path === "/v1/config-sync/environments/env_hosted/conflict-resolutions" &&
     request.method === "POST"
   ) {
     const body = await readJSON(request);

@@ -13,7 +13,7 @@ import type { Me } from "./types";
  */
 export async function getMeServer(): Promise<Me | null> {
   try {
-    return await pbServerFetch<Me>("/api/me");
+    return await pbServerFetch<Me>("/v1/me");
   } catch (err) {
     unstable_rethrow(err);
     if (err instanceof ApiError && err.status === 401) return null;

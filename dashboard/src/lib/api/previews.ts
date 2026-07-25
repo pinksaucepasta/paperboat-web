@@ -2,9 +2,9 @@ import { pbFetch } from "./client";
 import type { Preview } from "./types";
 
 export function listPreviews(): Promise<Preview[]> {
-  return pbFetch("/api/previews");
+  return pbFetch("/v1/previews");
 }
 
 export function revokePreview(id: string): Promise<Preview> {
-  return pbFetch(`/api/previews/${encodeURIComponent(id)}`, { method: "DELETE" });
+  return pbFetch(`/v1/previews/${encodeURIComponent(id)}`, { method: "DELETE" });
 }

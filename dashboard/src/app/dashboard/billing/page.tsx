@@ -73,7 +73,7 @@ const FEATURE_ICONS = {
   storage: DatabaseIcon,
   projects: Folder01Icon,
   regions: EarthIcon,
-  agentunnel: Link01Icon,
+  environment_access: Link01Icon,
   support: CustomerSupportIcon,
   feature: InformationCircleIcon,
 } satisfies Record<PlanFeatureIcon, typeof Coins01Icon>;

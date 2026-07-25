@@ -24,44 +24,44 @@ export interface UpdateProjectInput {
 }
 
 export async function listProjects(): Promise<Project[]> {
-  const response = await pbFetch<ProjectListResponse>("/api/projects");
+  const response = await pbFetch<ProjectListResponse>("/v1/projects");
   return response.items;
 }
 
 export function getProject(id: string): Promise<Project> {
-  return pbFetch<Project>(`/api/projects/${id}`);
+  return pbFetch<Project>(`/v1/projects/${id}`);
 }
 
 export function createProject(input: CreateProjectInput): Promise<Project> {
-  return pbFetch<Project>("/api/projects", { method: "POST", body: input });
+  return pbFetch<Project>("/v1/projects", { method: "POST", body: input });
 }
 
 export function updateProject(
   id: string,
   input: UpdateProjectInput,
 ): Promise<Project> {
-  return pbFetch<Project>(`/api/projects/${id}`, {
+  return pbFetch<Project>(`/v1/projects/${id}`, {
     method: "PATCH",
     body: input,
   });
 }
 
 export function startProject(id: string): Promise<Project> {
-  return pbFetch<Project>(`/api/projects/${id}/start`, { method: "POST" });
+  return pbFetch<Project>(`/v1/projects/${id}/start`, { method: "POST" });
 }
 
 export function stopProject(id: string): Promise<Project> {
-  return pbFetch<Project>(`/api/projects/${id}/stop`, { method: "POST" });
+  return pbFetch<Project>(`/v1/projects/${id}/stop`, { method: "POST" });
 }
 
 export function restartProject(id: string): Promise<Project> {
-  return pbFetch<Project>(`/api/projects/${id}/restart`, { method: "POST" });
+  return pbFetch<Project>(`/v1/projects/${id}/restart`, { method: "POST" });
 }
 
 export function deleteProject(id: string): Promise<Project> {
-  return pbFetch<Project>(`/api/projects/${id}`, { method: "DELETE" });
+  return pbFetch<Project>(`/v1/projects/${id}`, { method: "DELETE" });
 }
 
 export function getProjectEvents(id: string): Promise<ProjectEvent[]> {
-  return pbFetch<ProjectEvent[]>(`/api/projects/${id}/events`);
+  return pbFetch<ProjectEvent[]>(`/v1/projects/${id}/events`);
 }

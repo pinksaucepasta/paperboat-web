@@ -1,8 +1,8 @@
 import { pbFetch } from "./client";
-import type { AuthorizedClientList, DeviceRequest } from "./types";
+import type { CLIClientSessionList, DeviceRequest } from "./types";
 
 export function getDeviceRequest(userCode: string): Promise<DeviceRequest> {
-  return pbFetch(`/api/auth/device/requests/${encodeURIComponent(userCode)}`);
+  return pbFetch(`/v1/auth/device/requests/${encodeURIComponent(userCode)}`);
 }
 
 export function decideDeviceRequest(
@@ -10,24 +10,24 @@ export function decideDeviceRequest(
   decision: "approve" | "deny",
 ): Promise<DeviceRequest> {
   return pbFetch(
-    `/api/auth/device/requests/${encodeURIComponent(userCode)}/${decision}`,
+    `/v1/auth/device/requests/${encodeURIComponent(userCode)}/${decision}`,
     { method: "POST" },
   );
 }
 
-export function getAuthorizedClients(
+export function getCLIClientSessions(
   offset = 0,
   limit = 50,
-): Promise<AuthorizedClientList> {
+): Promise<CLIClientSessionList> {
   const query = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
   });
-  return pbFetch(`/api/auth/clients?${query.toString()}`);
+  return pbFetch(`/v1/auth/cli-client-sessions?${query.toString()}`);
 }
 
-export function revokeAuthorizedClient(clientSessionId: string): Promise<void> {
-  return pbFetch(`/api/auth/clients/${encodeURIComponent(clientSessionId)}`, {
+export function revokeCLIClientSession(clientSessionId: string): Promise<void> {
+  return pbFetch(`/v1/auth/cli-client-sessions/${encodeURIComponent(clientSessionId)}`, {
     method: "DELETE",
   });
 }

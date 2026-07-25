@@ -64,8 +64,8 @@ const PRODUCTS = [
     icon: Robot01Icon,
   },
   {
-    label: "AgenTunnel",
-    href: "#agentunnel",
+    label: "Secure access",
+    href: "#environment-access",
     description: "An extensible tunneling service for everything.",
     icon: ConnectIcon,
   },

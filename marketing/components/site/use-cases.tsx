@@ -565,7 +565,6 @@ function useReviewLoop() {
 }
 
 function PreviewViz() {
-  // The agentunnel review extension (internal/extensions/builtin/reviewcapture):
   // a floating pill on any preview, a pin dropped on the page, a note popover to
   // add a comment, and a submit that hands the review back — shown as a loop.
   const phase = useReviewLoop();

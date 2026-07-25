@@ -25,18 +25,18 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { ApiError } from "@/lib/api/client";
-import { getAuthorizedClients, revokeAuthorizedClient } from "@/lib/api/device-auth";
+import { getCLIClientSessions, revokeCLIClientSession } from "@/lib/api/device-auth";
 import { useApi } from "@/lib/api/use-api";
-import type { AuthorizedClient } from "@/lib/api/types";
+import type { CLIClientSession } from "@/lib/api/types";
 
-export function AuthorizedClientsCard() {
-  const clients = useApi(getAuthorizedClients);
-  const [additionalClients, setAdditionalClients] = React.useState<AuthorizedClient[]>([]);
+export function CLIClientSessionsCard() {
+  const clients = useApi(getCLIClientSessions);
+  const [additionalClients, setAdditionalClients] = React.useState<CLIClientSession[]>([]);
   const [nextOffset, setNextOffset] = React.useState<number | null | undefined>();
   const [loadingMore, setLoadingMore] = React.useState(false);
   const [revokedIds, setRevokedIds] = React.useState<Set<string>>(() => new Set());
   const items = [...(clients.data?.items ?? []), ...additionalClients].map((client) =>
-    revokedIds.has(client.client_session_id)
+    revokedIds.has(client.cli_client_session_id)
       ? { ...client, state: "revoked" as const }
       : client,
   );
@@ -48,11 +48,11 @@ export function AuthorizedClientsCard() {
     if (remainingOffset == null) return;
     setLoadingMore(true);
     try {
-      const page = await getAuthorizedClients(remainingOffset);
+      const page = await getCLIClientSessions(remainingOffset);
       setAdditionalClients((current) => {
-        const known = new Set(current.map((client) => client.client_session_id));
-        for (const client of clients.data?.items ?? []) known.add(client.client_session_id);
-        return [...current, ...page.items.filter((client) => !known.has(client.client_session_id))];
+        const known = new Set(current.map((client) => client.cli_client_session_id));
+        for (const client of clients.data?.items ?? []) known.add(client.cli_client_session_id);
+        return [...current, ...page.items.filter((client) => !known.has(client.cli_client_session_id))];
       });
       setNextOffset(page.pagination.next_offset);
     } catch (cause) {
@@ -71,17 +71,17 @@ export function AuthorizedClientsCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-heading text-base font-semibold">Authorized devices</CardTitle>
+        <CardTitle className="font-heading text-base font-semibold">CLI sessions</CardTitle>
         <CardDescription>Devices signed in to your Paperboat account through the CLI.</CardDescription>
       </CardHeader>
       <CardContent>
         {clients.loading ? <div className="flex flex-col gap-3"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div> : null}
-        {clients.error ? <p role="alert" className="text-sm text-destructive">Could not load authorized devices. {clients.error.message}</p> : null}
+        {clients.error ? <p role="alert" className="text-sm text-destructive">Could not load CLI sessions. {clients.error.message}</p> : null}
         {!clients.loading && !clients.error && items.length === 0 ? (
           <Empty>
             <EmptyHeader>
               <EmptyMedia variant="icon"><HugeiconsIcon icon={ComputerIcon} /></EmptyMedia>
-              <EmptyTitle>No authorized devices</EmptyTitle>
+              <EmptyTitle>No CLI sessions</EmptyTitle>
               <EmptyDescription>Devices appear here after you approve a Paperboat CLI sign-in.</EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -89,15 +89,15 @@ export function AuthorizedClientsCard() {
         {items.length ? (
           <div className="flex flex-col">
             {items.map((client, index) => (
-              <React.Fragment key={client.client_session_id}>
+              <React.Fragment key={client.cli_client_session_id}>
                 {index > 0 ? <Separator /> : null}
-                <AuthorizedClientRow client={client} onRevoked={markRevoked} />
+                <CLIClientSessionRow client={client} onRevoked={markRevoked} />
               </React.Fragment>
             ))}
             {remainingOffset != null ? (
               <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
                 {loadingMore ? <Spinner data-icon="inline-start" /> : null}
-                Load more devices
+                Load more sessions
               </Button>
             ) : null}
           </div>
@@ -107,15 +107,15 @@ export function AuthorizedClientsCard() {
   );
 }
 
-function AuthorizedClientRow({ client, onRevoked }: { client: AuthorizedClient; onRevoked: (clientSessionId: string) => void }) {
+function CLIClientSessionRow({ client, onRevoked }: { client: CLIClientSession; onRevoked: (clientSessionId: string) => void }) {
   const [revoking, setRevoking] = React.useState(false);
 
   async function revoke() {
     setRevoking(true);
     try {
-      await revokeAuthorizedClient(client.client_session_id);
+      await revokeCLIClientSession(client.cli_client_session_id);
       toast.success("Device revoked.");
-      onRevoked(client.client_session_id);
+      onRevoked(client.cli_client_session_id);
     } catch (cause) {
       toast.error("Could not revoke device.", {
         description: cause instanceof ApiError ? cause.message : "Something went wrong.",

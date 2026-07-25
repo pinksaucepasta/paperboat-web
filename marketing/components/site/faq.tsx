@@ -35,7 +35,7 @@ const FAQS = [
   },
   {
     q: "Is my machine exposed to the internet?",
-    a: "No. Nothing on a project VM is published as a public port. All traffic goes through the agentunnel relay after authorization. The only public surface is a preview URL, and only when you or your agent creates one.",
+    a: "No. Nothing on a project VM is published as a public port. Environment traffic crosses the authenticated Paperboat edge. The only public surface is a preview URL, and only when you or your agent creates one.",
   },
   {
     q: "Can I use it without the app?",

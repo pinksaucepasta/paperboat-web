@@ -2,7 +2,7 @@ import { serverBaseUrl, CSRF_COOKIE } from "@/lib/api/server";
 
 /**
  * GitHub redirects here with `?code&state` after the user authorizes. We forward
- * both to the server's CSRF-protected `/api/github/oauth/callback` (relaying the
+ * both to the server's CSRF-protected `/v1/github/oauth/callback` (relaying the
  * session, oauth-state, and CSRF cookies), then return to the initiating
  * dashboard surface.
  */
@@ -32,7 +32,7 @@ export async function GET(req: Request): Promise<Response> {
     .find((c) => c.startsWith(CSRF_COOKIE + "="))
     ?.slice(CSRF_COOKIE.length + 1);
 
-  const serverRes = await fetch(serverBaseUrl() + "/api/github/oauth/callback", {
+  const serverRes = await fetch(serverBaseUrl() + "/v1/github/oauth/callback", {
     method: "POST",
     headers: {
       "content-type": "application/json",

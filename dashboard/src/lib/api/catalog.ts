@@ -8,21 +8,21 @@ import type {
 } from "./types";
 
 export function listCatalogPlans(): Promise<CatalogPlan[]> {
-  return pbFetch<CatalogPlan[]>("/api/catalog/plans");
+  return pbFetch<CatalogPlan[]>("/v1/catalog/plans");
 }
 
 export function listCatalogMachineTypes(): Promise<CatalogMachineType[]> {
-  return pbFetch<CatalogMachineType[]>("/api/catalog/machine-types");
+  return pbFetch<CatalogMachineType[]>("/v1/catalog/machine-types");
 }
 
 export function listCatalogPresets(): Promise<CatalogPreset[]> {
-  return pbFetch<CatalogPreset[]>("/api/catalog/presets");
+  return pbFetch<CatalogPreset[]>("/v1/catalog/presets");
 }
 
 export function listCatalogIdleTimeouts(): Promise<CatalogIdleTimeout[]> {
-  return pbFetch<CatalogIdleTimeout[]>("/api/catalog/idle-timeouts");
+  return pbFetch<CatalogIdleTimeout[]>("/v1/catalog/idle-timeouts");
 }
 
 export function listCatalogRegions(): Promise<CatalogRegion[]> {
-  return pbFetch<CatalogRegion[]>("/api/catalog/regions");
+  return pbFetch<CatalogRegion[]>("/v1/catalog/regions");
 }
