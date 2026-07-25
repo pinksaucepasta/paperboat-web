@@ -79,8 +79,12 @@ export async function GET(req: Request): Promise<Response> {
     status: 302,
     headers: { location: new URL("/dashboard", req.url).toString() },
   });
+  const localHTTP = url.protocol === "http:";
   for (const cookie of callbackRes.headers.getSetCookie()) {
-    res.headers.append("set-cookie", cookie);
+    res.headers.append(
+      "set-cookie",
+      localHTTP ? cookie.replace(/;\s*Secure(?=;|$)/gi, "") : cookie,
+    );
   }
   return res;
 }
