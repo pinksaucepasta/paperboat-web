@@ -41,6 +41,7 @@ import {
   getUserMachineOverview,
   listUserMachines,
   retryUserMachineEnrollment,
+  setUserMachineAvailability,
   startUserMachineEnrollment,
 } from "@/lib/api/user-machines";
 import type {
@@ -49,7 +50,9 @@ import type {
   UserMachineEnrollmentStart,
   UserMachineEnrollmentState,
   UserMachineOverview,
+  AvailabilityMode,
 } from "@/lib/api/types";
+import { Switch } from "@/components/ui/switch";
 
 const ACTIVE_ENROLLMENT_KEY = "paperboat.active-user-machine-enrollment";
 const POLLED_STATES = new Set<UserMachineEnrollmentState>([
@@ -184,6 +187,21 @@ export default function UserMachinesPage() {
     }
   }
 
+  async function updateAvailability(machine: UserMachine, mode: AvailabilityMode) {
+    setBusy(machine.id + "availability");
+    try {
+      const availability = await setUserMachineAvailability(machine.id, mode, machine.availability.desired_version);
+      setItems((current) => current.map((item) => item.id === machine.id ? { ...item, availability } : item));
+      toast.success(mode === "keep_awake" ? "Keep awake saved." : "Normal sleep restored.", {
+        description: availability.status === "applied" ? "The machine confirmed the change." : "Paperboat will apply it when the machine reconnects.",
+      });
+    } catch (error) {
+      toast.error("Couldn't update availability.", { description: errorMessage(error, "Refresh the machine state and try again.") });
+    } finally {
+      setBusy(undefined);
+    }
+  }
+
   const includedPercent = overview?.included_bytes
     ? Math.min(100, Math.round((overview.consumed_included_bytes / overview.included_bytes) * 100))
     : 0;
@@ -245,6 +263,7 @@ export default function UserMachinesPage() {
               <CardContent className="space-y-2 text-sm">
                 <p className="truncate text-muted-foreground" title={machine.workspace_root}>{machine.workspace_root}</p>
                 <p className="text-xs text-muted-foreground">Seat {machine.seat_state}</p>
+                <AvailabilityControl machine={machine} busy={busy === machine.id + "availability"} onChange={(mode) => void updateAvailability(machine, mode)} onRetry={() => void refresh()} />
               </CardContent>
               <CardFooter className="gap-2">
                 <AlertDialog>
@@ -311,6 +330,43 @@ export default function UserMachinesPage() {
   );
 }
 
+function AvailabilityControl({ machine, busy, onChange, onRetry }: { machine: UserMachine; busy: boolean; onChange: (mode: AvailabilityMode) => void; onRetry: () => void }) {
+  const policy = machine.availability;
+  const keepAwake = policy.desired_mode === "keep_awake";
+  const drifted = policy.observed_version !== policy.desired_version || policy.observed_mode !== policy.desired_mode;
+  const variant = policy.status === "applied" && !drifted ? "success" : policy.status === "error" || policy.status === "unsupported" ? "error" : "warning";
+  const status = policy.status === "applied" && drifted ? "Pending" : stateLabel(policy.status);
+  return (
+    <div className="mt-4 space-y-2 border-t pt-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0 space-y-0.5">
+          <div className="flex flex-wrap items-center gap-2"><p className="font-medium">Keep awake</p><Badge variant={variant}>{status}</Badge></div>
+          <p className="text-xs text-muted-foreground">{keepAwake ? "Blocks idle and lid-close sleep." : "Uses the machine's normal sleep settings."}</p>
+        </div>
+        {keepAwake ? (
+          <Switch aria-label={`Allow ${machine.display_name} to sleep`} checked disabled={busy} onCheckedChange={(checked) => { if (!checked) onChange("allow_sleep"); }} />
+        ) : (
+          <AlertDialog>
+            <AlertDialogTrigger render={<Switch aria-label={`Keep ${machine.display_name} awake`} checked={false} disabled={busy} />} />
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Keep {machine.display_name} awake?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Paperboat will prevent idle and lid-close sleep on battery and AC power. This can increase battery use and heat. macOS machines still require the first FileVault unlock after reboot.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => onChange("keep_awake")}>Keep awake</AlertDialogAction></AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+      </div>
+      {policy.status === "offline" ? <p className="text-xs text-amber-700 dark:text-amber-400">Saved. The machine will apply this automatically after it reconnects.</p> : null}
+      {policy.status === "unsupported" ? <p className="text-xs text-destructive">This host service cannot manage sleep. Update Paperboat on the machine, then retry.</p> : null}
+      {policy.status === "error" ? <div className="flex items-center justify-between gap-3"><p className="text-xs text-destructive">The host service could not apply this setting. Run <code className="font-mono">pbh doctor</code> locally; uninstall restores the original power settings.</p><Button size="sm" variant="outline" onClick={onRetry}><HugeiconsIcon icon={RefreshIcon} />Retry</Button></div> : null}
+    </div>
+  );
+}
+
 function EnrollmentPanel({ enrollment, busy, onCancel, onRetry }: { enrollment: UserMachineEnrollment | UserMachineEnrollmentStart; busy?: string; onCancel: () => void; onRetry: () => void }) {
   const command = "bootstrap_command" in enrollment ? enrollment.bootstrap_command : "";
   const retryable = ["cancelled", "expired", "denied", "failed_retryable"].includes(enrollment.state);
@@ -365,7 +421,7 @@ function enrollmentVariant(state: UserMachineEnrollmentState): "success" | "warn
   return "outline";
 }
 
-function stateLabel(state: UserMachineEnrollmentState) {
+function stateLabel(state: string) {
   return state.split("_").map((part) => part[0].toUpperCase() + part.slice(1)).join(" ");
 }
 

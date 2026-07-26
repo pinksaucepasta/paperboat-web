@@ -1,5 +1,5 @@
 import { pbFetch } from "./client";
-import type { UserMachine, UserMachineEnrollment, UserMachineEnrollmentStart, UserMachineListResponse, UserMachineOverview } from "./types";
+import type { AvailabilityMode, AvailabilityPolicy, UserMachine, UserMachineEnrollment, UserMachineEnrollmentStart, UserMachineListResponse, UserMachineOverview } from "./types";
 
 export async function listUserMachines(): Promise<UserMachine[]> {
   return (await pbFetch<UserMachineListResponse>("/v1/user-machines")).items;
@@ -18,6 +18,12 @@ export function disconnectUserMachine(id: string): Promise<void> {
 }
 export function deleteUserMachine(id: string): Promise<void> {
   return pbFetch(`/v1/user-machines/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+export function setUserMachineAvailability(id: string, mode: AvailabilityMode, expectedVersion: number): Promise<AvailabilityPolicy> {
+  return pbFetch(`/v1/user-machines/${encodeURIComponent(id)}/availability-policy`, {
+    method: "PUT",
+    body: { mode, expected_version: expectedVersion },
+  });
 }
 export function startUserMachineEnrollment(idempotencyKey: string): Promise<UserMachineEnrollmentStart> {
   return pbFetch("/v1/user-machine-enrollments", { method: "POST", idempotencyKey });

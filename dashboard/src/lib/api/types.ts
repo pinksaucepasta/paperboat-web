@@ -26,6 +26,24 @@ export interface UserMachine {
   runtime_versions: Record<string, string>;
   enrolled_at?: string;
   last_seen_at?: string;
+	availability: AvailabilityPolicy;
+}
+
+export type AvailabilityMode = "allow_sleep" | "keep_awake";
+export type AvailabilityStatus = "applied" | "pending" | "offline" | "unsupported" | "error";
+
+export interface AvailabilityPolicy {
+	schema: "paperboat.availability-policy/v1";
+	desired_mode: AvailabilityMode;
+	desired_version: number;
+	observed_mode?: AvailabilityMode;
+	observed_version: number;
+	observed_at?: string;
+	status: AvailabilityStatus;
+	error_code?: string;
+	host_service_version?: string;
+	host_service_scope?: "system";
+	update_rollbacks: number;
 }
 
 export interface UserMachineListResponse { items: UserMachine[] }
