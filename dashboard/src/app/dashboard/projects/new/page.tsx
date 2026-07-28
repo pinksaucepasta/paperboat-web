@@ -37,7 +37,6 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { BashScriptInput } from "@/components/dashboard/bash-script-input";
 import { ApiError } from "@/lib/api/client";
 import {
-  listCatalogIdleTimeouts,
   listCatalogMachineTypes,
   listCatalogPresets,
   listCatalogRegions,
@@ -46,7 +45,6 @@ import { getUsage } from "@/lib/api/billing";
 import { listGitHubRepositories } from "@/lib/api/github";
 import { useProjectActions, useProjects } from "@/lib/api/use-projects";
 import type {
-  CatalogIdleTimeout,
   CatalogMachineType,
   CatalogPreset,
   CatalogRegion,
@@ -57,7 +55,6 @@ import type {
 interface CatalogState {
   machineTypes: CatalogMachineType[];
   presets: CatalogPreset[];
-  idleTimeouts: CatalogIdleTimeout[];
   regions: CatalogRegion[];
   repositories: GitHubRepository[];
   usage?: Usage;
@@ -66,7 +63,6 @@ interface CatalogState {
 const emptyCatalog: CatalogState = {
   machineTypes: [],
   presets: [],
-  idleTimeouts: [],
   regions: [],
   repositories: [],
 };
@@ -88,17 +84,15 @@ export default function NewProjectPage() {
     Promise.all([
       listCatalogMachineTypes(),
       listCatalogPresets(),
-      listCatalogIdleTimeouts(),
       listCatalogRegions(),
       getUsage(),
       listGitHubRepositories(),
     ])
-      .then(([machineTypes, presets, idleTimeouts, regions, usage, repositories]) => {
+      .then(([machineTypes, presets, regions, usage, repositories]) => {
         if (!active) return;
         setCatalog({
           machineTypes: machineTypes.filter((item) => item.active),
           presets: presets.filter((item) => item.active),
-          idleTimeouts: idleTimeouts.filter((item) => item.active),
           regions: regions.filter((item) => item.enabled),
           repositories,
           usage,
@@ -123,7 +117,6 @@ export default function NewProjectPage() {
 
   const defaultMachine = catalog.machineTypes[0]?.code ?? "";
   const defaultRegion = catalog.regions[0]?.code ?? "";
-  const defaultIdleTimeout = catalog.idleTimeouts[0]?.code ?? "";
   const availableStorageGB = catalog.usage?.available_storage_gb ?? 0;
   const totalStorageGB = catalog.usage
     ? catalog.usage.included_storage_gb + catalog.usage.purchased_storage_gb
@@ -136,7 +129,6 @@ export default function NewProjectPage() {
     catalog.repositories.length === 0 ? "no GitHub repositories" : undefined,
     catalog.machineTypes.length === 0 ? "no active machine types" : undefined,
     catalog.regions.length === 0 ? "no enabled regions" : undefined,
-    catalog.idleTimeouts.length === 0 ? "no active idle timeout options" : undefined,
     availableStorageGB < 1
       ? hasStoragePendingRelease
         ? "storage release in progress"
@@ -162,7 +154,6 @@ export default function NewProjectPage() {
         machine_type_code: String(form.get("machine_type_code") ?? defaultMachine),
         region_code: String(form.get("region_code") ?? defaultRegion),
         preset_codes: presetCodes,
-        idle_timeout_code: String(form.get("idle_timeout_code") ?? defaultIdleTimeout),
         setup_script: String(form.get("setup_script") ?? ""),
       });
       toast.success("Project created.");
@@ -341,22 +332,6 @@ export default function NewProjectPage() {
                     ? " Storage from a deleted project is still being released."
                     : ""}
                 </FieldDescription>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="idle_timeout_code">Idle timeout</FieldLabel>
-                <NativeSelect
-                  id="idle_timeout_code"
-                  name="idle_timeout_code"
-                  className="w-full"
-                  defaultValue={defaultIdleTimeout}
-                  required
-                >
-                  {catalog.idleTimeouts.map((timeout) => (
-                    <NativeSelectOption key={timeout.code} value={timeout.code}>
-                      {Math.round(timeout.duration_seconds / 60)} minutes
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
               </Field>
             </div>
           </FieldSet>

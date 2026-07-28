@@ -268,7 +268,6 @@ export interface ProjectConfig {
   machine_type_code: string;
   region_code: string;
   preset_codes: string[];
-  idle_timeout_code: string;
   setup_script_ref?: string;
   config_hash: string;
 }
@@ -432,13 +431,6 @@ export interface CatalogPreset {
   code: string;
   name: string;
   description: string;
-  active: boolean;
-  version: number;
-}
-
-export interface CatalogIdleTimeout {
-  code: string;
-  duration_seconds: number;
   active: boolean;
   version: number;
 }

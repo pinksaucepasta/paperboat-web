@@ -9,7 +9,6 @@ export interface CreateProjectInput {
   machine_type_code: string;
   region_code: string;
   preset_codes?: string[];
-  idle_timeout_code: string;
   setup_script?: string;
 }
 
@@ -19,7 +18,6 @@ export interface UpdateProjectInput {
   machine_type_code?: string;
   region_code?: string;
   preset_codes?: string[];
-  idle_timeout_code?: string;
   setup_script?: string;
 }
 

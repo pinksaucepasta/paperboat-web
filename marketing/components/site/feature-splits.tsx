@@ -8,8 +8,8 @@ import { container, item, viewportOnce } from "@/components/site/motion";
 /**
  * Two alternating split sections — copy on one side, a living illustration on
  * the other — covering the platform's two most load-bearing behaviors from
- * USERSTORY.md: the auto-stop/resume lifecycle (credits only burn while a
- * machine runs) and the GitHub-backed config sync that makes machines
+ * USERSTORY.md: runtime metering (credits only burn while a machine runs) and
+ * the GitHub-backed config sync that makes machines
  * disposable without losing your setup. Illustrations are real state machines,
  * not decorations: each one steps through the actual lifecycle it describes.
  */
@@ -18,21 +18,20 @@ import { container, item, viewportOnce } from "@/components/site/motion";
 
 /**
  * A day in the life of one machine, drawn as a chart instead of a UI mock.
- * The top band is 24 hours of machine state (working / idle / asleep); the
+ * The top band is 24 hours of machine state (running / stopped); the
  * line below is cumulative spend. A playhead sweeps the day once and the
- * spend line climbs only while the machine is up — including the short idle
- * tails before auto-stop fires (that's the honest part) — and goes flat the
- * moment it stops. The flat stretches are the argument.
+ * spend line climbs only while the machine is up and goes flat after the user
+ * stops it. The flat stretches are the argument.
  */
 
-type DayKind = "run" | "idle" | "sleep";
+type DayKind = "run" | "sleep";
 const DAY: { from: number; to: number; kind: DayKind }[] = [
   { from: 0, to: 8.5, kind: "sleep" },
   { from: 8.5, to: 12, kind: "run" },
-  { from: 12, to: 12.5, kind: "idle" },
+  { from: 12, to: 12.5, kind: "run" },
   { from: 12.5, to: 14, kind: "sleep" },
   { from: 14, to: 19, kind: "run" },
-  { from: 19, to: 19.5, kind: "idle" },
+  { from: 19, to: 19.5, kind: "run" },
   { from: 19.5, to: 24, kind: "sleep" },
 ];
 const METERED = DAY.filter((s) => s.kind !== "sleep").reduce((a, s) => a + (s.to - s.from), 0);
@@ -53,7 +52,6 @@ function kindAt(t: number): DayKind {
 
 const DAY_STATUS: Record<DayKind, string> = {
   run: "metering · agent working",
-  idle: "metering · auto-stop counting down",
   sleep: "zero spend · machine stopped",
 };
 
@@ -107,7 +105,7 @@ function LifecycleIllustration() {
   const hh = String(Math.floor(t) % 24).padStart(2, "0");
   const mm = String(Math.floor((t % 1) * 60)).padStart(2, "0");
   const done = t >= 24;
-  const firstStop = DAY.find((s) => s.kind === "idle")!.to;
+  const firstStop = DAY.find((s) => s.kind === "run")!.to;
 
   return (
     <div ref={ref}>
@@ -141,7 +139,7 @@ function LifecycleIllustration() {
               width={x(s.to) - x(s.from)}
               height={TRACK_H}
               fill="var(--primary)"
-              opacity={s.kind === "run" ? 0.9 : 0.35}
+              opacity={0.9}
             />
           ))}
         </g>
@@ -162,7 +160,7 @@ function LifecycleIllustration() {
           </text>
         ))}
 
-        {/* auto-stop annotation — where the idle tail ends and spend goes flat */}
+        {/* First deliberate stop, where spend goes flat. */}
         <g opacity={t >= firstStop ? 1 : 0.25} style={{ transition: "opacity 0.4s" }}>
           <line
             x1={x(firstStop)}
@@ -181,7 +179,7 @@ function LifecycleIllustration() {
             fontFamily="var(--font-mono)"
             fill="var(--muted-foreground)"
           >
-            auto-stop
+            stopped
           </text>
         </g>
 
@@ -228,9 +226,6 @@ function LifecycleIllustration() {
       <div className="text-caption mt-3 flex flex-wrap gap-x-6 gap-y-1.5 font-mono text-muted-foreground">
         <span className="flex items-center gap-2">
           <span className="h-2 w-4 rounded-full bg-primary/90" /> working · meters
-        </span>
-        <span className="flex items-center gap-2">
-          <span className="h-2 w-4 rounded-full bg-primary/35" /> idle · meters until auto-stop
         </span>
         <span className="flex items-center gap-2">
           <span className="h-2 w-4 rounded-full bg-border" /> asleep · free
@@ -371,11 +366,11 @@ export function FeatureSplits() {
         <Split
           id="lifecycle"
           title="Pay for runtime, not uptime"
-          body="Machines stop themselves when you and the agent go quiet, and resume when you connect. Credits meter only while a machine is running."
+          body="You control when each machine runs. Credits meter only while a machine is running, and its project volume persists while stopped."
           points={[
-            "Auto-stop on idle, with a timeout you set per project",
-            "Instant resume on connect, from any client",
-            "Run several projects in parallel; sleeping ones cost nothing",
+            "Explicit stop and resume from the dashboard or CLI",
+            "Persistent code, git state, and build caches",
+            "Run several projects in parallel; stopped ones cost nothing",
           ]}
         >
           <LifecycleIllustration />

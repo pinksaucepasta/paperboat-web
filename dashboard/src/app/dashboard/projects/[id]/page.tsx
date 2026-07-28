@@ -130,7 +130,7 @@ export default function ProjectDetailPage() {
           icon={Database01Icon}
           label="Storage"
           value={`${cfg.storage_gb} GB`}
-          sub={`Idle timeout: ${cfg.idle_timeout_code || "—"}`}
+          sub="Persistent project volume"
         />
         <InfoCard
           icon={GitBranchIcon}

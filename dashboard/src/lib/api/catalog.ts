@@ -1,6 +1,5 @@
 import { pbFetch } from "./client";
 import type {
-  CatalogIdleTimeout,
   CatalogMachineType,
   CatalogPlan,
   CatalogPreset,
@@ -17,10 +16,6 @@ export function listCatalogMachineTypes(): Promise<CatalogMachineType[]> {
 
 export function listCatalogPresets(): Promise<CatalogPreset[]> {
   return pbFetch<CatalogPreset[]>("/v1/catalog/presets");
-}
-
-export function listCatalogIdleTimeouts(): Promise<CatalogIdleTimeout[]> {
-  return pbFetch<CatalogIdleTimeout[]>("/v1/catalog/idle-timeouts");
 }
 
 export function listCatalogRegions(): Promise<CatalogRegion[]> {

@@ -23,7 +23,7 @@ const FAQS = [
   },
   {
     q: "What happens when I stop working?",
-    a: "When you and the agent both go quiet for longer than the idle timeout you set, the machine stops itself. Credits meter only while a machine is running, so a stopped project costs nothing. Connect again and it resumes where it stopped.",
+    a: "Your project keeps running until you stop it. Credits meter only while its machine is running, and stopping it preserves the project volume so you can resume later.",
   },
   {
     q: "Where does my code live?",
