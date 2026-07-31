@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const dashboardURL = "http://127.0.0.1:3100";
+const dashboardURL = "http://localhost:3100";
 const controlPlaneURL = "http://127.0.0.1:43001";
 
 export default defineConfig({

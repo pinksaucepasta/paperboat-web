@@ -28,7 +28,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { title: "Overview", href: "/dashboard", icon: DashboardSquare01Icon },
       { title: "Projects", href: "/dashboard/projects", icon: Folder01Icon },
-      { title: "User machines", href: "/dashboard/user-machines", icon: CloudServerIcon },
+      { title: "Machines", href: "/dashboard/machines", icon: CloudServerIcon },
       { title: "Previews", href: "/dashboard/previews", icon: Globe02Icon },
       { title: "Configuration", href: "/dashboard/configuration", icon: Configuration01Icon },
     ],

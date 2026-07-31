@@ -5,7 +5,7 @@ const controlPlaneURL = "http://127.0.0.1:43001";
 test.beforeEach(async ({ page, request }) => {
   await request.post(controlPlaneURL + "/__test/reset");
   await page.goto("/auth/dev-login");
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await page.waitForURL(/\/dashboard$/, { waitUntil: "networkidle" });
   await page.goto("/dashboard/configuration");
   await expect(page.getByRole("heading", { name: "Configuration" })).toBeVisible();
   await expect(page.getByText("paperboat/config-private").first()).toBeVisible();
@@ -21,7 +21,7 @@ test("requires the current named BYOD warning before enabling sync", async ({ pa
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText("paperboat/config-private");
   await expect(dialog).toContainText("/home/sailor");
-  await expect(dialog).toContainText("Normalized relative paths and bounded file metadata");
+  await expect(dialog).toContainText("explicitly listed in the repository's .pbinclude manifest");
   await expect(dialog).toContainText("Offline changes remain local");
   await expect(dialog).toContainText("Remove consent or unassign the repository to stop synchronization immediately");
 
@@ -54,6 +54,20 @@ test("resolves a conflict only with its current revisions", async ({ page }) => 
   await page.getByRole("button", { name: "Keep repository" }).click();
 
   await expect(page.getByText("Resolution queued for .config/editor/settings.json.")).toBeVisible();
+  await expect(page.getByText("No concurrent changes need resolution.")).toBeVisible();
+});
+
+test("previews and confirms a path-scoped force pull", async ({ page }) => {
+  await page.getByRole("button", { name: "Force repository" }).click();
+  const dialog = page.getByRole("dialog", { name: "Force repository version?" });
+  await expect(dialog).toContainText(".config/editor/settings.json");
+  await expect(dialog).toContainText("Path-scoped operation");
+  await expect(dialog).toContainText("recoverable history");
+  const queue = dialog.getByRole("button", { name: "Queue force operation" });
+  await expect(queue).toBeDisabled();
+  await dialog.getByRole("checkbox").check();
+  await queue.click();
+  await expect(page.getByText("Force pull queued for .config/editor/settings.json.")).toBeVisible();
   await expect(page.getByText("No concurrent changes need resolution.")).toBeVisible();
 });
 

@@ -6,9 +6,6 @@ import { pbFetch } from "./client";
 import { useApi } from "./use-api";
 import type {
   ConfigAssignment,
-  ConfigClassificationDecision,
-  ConfigClassificationOverride,
-  ConfigRecoveryKey,
   ConfigRepository,
   ConfigSyncStatus,
   ConfigWarningFacts,
@@ -45,32 +42,34 @@ export function disconnectConfigRepository(repositoryId: string): Promise<void> 
   return pbFetch(`/v1/config-repositories/${encodeURIComponent(repositoryId)}`, { method: "DELETE" });
 }
 
-export function assignConfigRepository(environmentId: string, repositoryId: string, expectedVersion: number): Promise<ConfigAssignment> {
-  return pbFetch(`/v1/environments/${encodeURIComponent(environmentId)}/config-assignment`, {
+export type ConfigAssignmentMode = "pull_only" | "push_only" | "bidirectional";
+
+export function assignConfigRepository(machineId: string, repositoryId: string, mode: ConfigAssignmentMode, expectedVersion: number): Promise<ConfigAssignment> {
+  return pbFetch(`/v1/machines/${encodeURIComponent(machineId)}/config-assignment`, {
     method: "PUT",
-    body: { repository_id: repositoryId, warning_revision: "", expected_version: expectedVersion },
+    body: { repository_id: repositoryId, mode, warning_revision: "", expected_version: expectedVersion },
   });
 }
 
-export function unassignConfigRepository(environmentId: string, expectedVersion: number): Promise<void> {
-  return pbFetch(`/v1/environments/${encodeURIComponent(environmentId)}/config-assignment?expected_version=${expectedVersion}`, { method: "DELETE" });
+export function unassignConfigRepository(machineId: string, expectedVersion: number): Promise<void> {
+  return pbFetch(`/v1/machines/${encodeURIComponent(machineId)}/config-assignment?expected_version=${expectedVersion}`, { method: "DELETE" });
 }
 
-export function getConfigWarning(environmentId: string): Promise<ConfigWarningFacts> {
-  return pbFetch(`/v1/environments/${encodeURIComponent(environmentId)}/config-assignment/warning`);
+export function getConfigWarning(machineId: string): Promise<ConfigWarningFacts> {
+  return pbFetch(`/v1/machines/${encodeURIComponent(machineId)}/config-assignment/warning`);
 }
 
-export function acceptConfigConsent(environmentId: string, revision: string, expectedVersion: number): Promise<ConfigAssignment> {
-  return pbFetch(`/v1/environments/${encodeURIComponent(environmentId)}/config-assignment/consent`, {
+export function acceptConfigConsent(machineId: string, revision: string, expectedVersion: number): Promise<ConfigAssignment> {
+  return pbFetch(`/v1/machines/${encodeURIComponent(machineId)}/config-assignment/consent`, {
     method: "POST", body: { warning_revision: revision, expected_version: expectedVersion },
   });
 }
 
-export function removeConfigConsent(environmentId: string, expectedVersion: number): Promise<ConfigAssignment> {
-  return pbFetch(`/v1/environments/${encodeURIComponent(environmentId)}/config-assignment/consent?expected_version=${expectedVersion}`, { method: "DELETE" });
+export function removeConfigConsent(machineId: string, expectedVersion: number): Promise<ConfigAssignment> {
+  return pbFetch(`/v1/machines/${encodeURIComponent(machineId)}/config-assignment/consent?expected_version=${expectedVersion}`, { method: "DELETE" });
 }
 
-export type ConfigConflictResolutionAction = "keep_local" | "keep_remote" | "externally_resolved";
+export type ConfigConflictResolutionAction = "keep_local" | "keep_remote";
 
 export function resolveConfigConflict(
   environmentId: string,
@@ -88,13 +87,25 @@ export function resolveConfigConflict(
   });
 }
 
-export function listConfigSyncOverrides(): Promise<ConfigClassificationOverride[]> { return pbFetch("/v1/config-sync/overrides"); }
-export function putConfigSyncOverride(path: string, decision: ConfigClassificationDecision): Promise<{path:string;decision:ConfigClassificationDecision}> { return pbFetch("/v1/config-sync/overrides",{method:"PUT",body:{path,decision}}); }
-export function deleteConfigSyncOverride(path: string): Promise<{deleted:boolean}> { return pbFetch("/v1/config-sync/overrides",{method:"DELETE",body:{path}}); }
-export function exportConfigRecoveryKey(): Promise<ConfigRecoveryKey> { return pbFetch("/v1/config-sync/recovery-key/export",{method:"POST"}); }
-export function rotateConfigRecoveryKey(): Promise<{recipient:string;key_version:number;state:string}> { return pbFetch("/v1/config-sync/recovery-key/rotate",{method:"POST"}); }
+export type ConfigForceAction = "force_pull" | "force_push";
 
-export function useConfigSyncOverrides() { const request=React.useCallback(()=>listConfigSyncOverrides(),[]); return useApi(request); }
+export function forceConfigSync(
+  environmentId: string,
+  input: {
+    scope: "path" | "config";
+    path?: string;
+    conflict_revision?: string;
+    expected_remote_revision: string;
+    expected_assignment_version: number;
+    action: ConfigForceAction;
+    confirmation: "FORCE PULL" | "FORCE PUSH";
+  },
+): Promise<{ id: string; scope: "path" | "config"; action: ConfigForceAction }> {
+  return pbFetch(`/v1/config-sync/environments/${encodeURIComponent(environmentId)}/force`, {
+    method: "POST",
+    body: input,
+  });
+}
 
 export function useConfigSyncStatus() {
   const request = React.useCallback(() => getConfigSyncStatus(), []);
@@ -113,8 +124,7 @@ export function useConfigSyncStatus() {
 export function configSyncNeedsPolling(status: ConfigSyncStatus): boolean {
   return status.environments.some(
     (environment) =>
-      TRANSITIONAL_SYNC_STATES.has(environment.state) ||
-      environment.classifier_pending.length > 0,
+	  TRANSITIONAL_SYNC_STATES.has(environment.state),
   );
 }
 

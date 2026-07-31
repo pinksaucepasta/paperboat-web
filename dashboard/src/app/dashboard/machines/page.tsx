@@ -32,30 +32,30 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { ApiError } from "@/lib/api/client";
 import {
-  approveUserMachine,
-  cancelUserMachineEnrollment,
-  deleteUserMachine,
-  denyUserMachine,
-  disconnectUserMachine,
-  getUserMachineEnrollment,
-  getUserMachineOverview,
-  listUserMachines,
-  retryUserMachineEnrollment,
-  setUserMachineAvailability,
-  startUserMachineEnrollment,
-} from "@/lib/api/user-machines";
+  approveMachine,
+  cancelMachineEnrollment,
+  deleteMachine,
+  denyMachine,
+  disconnectMachine,
+  getMachineEnrollment,
+  getMachineOverview,
+  listMachines,
+  retryMachineEnrollment,
+  setMachineAvailability,
+  startMachineEnrollment,
+} from "@/lib/api/machines";
 import type {
-  UserMachine,
-  UserMachineEnrollment,
-  UserMachineEnrollmentStart,
-  UserMachineEnrollmentState,
-  UserMachineOverview,
+  Machine,
+  MachineEnrollment,
+  MachineEnrollmentStart,
+  MachineEnrollmentState,
+  MachineOverview,
   AvailabilityMode,
 } from "@/lib/api/types";
 import { Switch } from "@/components/ui/switch";
 
-const ACTIVE_ENROLLMENT_KEY = "paperboat.active-user-machine-enrollment";
-const POLLED_STATES = new Set<UserMachineEnrollmentState>([
+const ACTIVE_ENROLLMENT_KEY = "paperboat.active-machine-enrollment";
+const POLLED_STATES = new Set<MachineEnrollmentState>([
   "awaiting_bootstrap",
   "awaiting_approval",
   "approved",
@@ -64,10 +64,10 @@ const POLLED_STATES = new Set<UserMachineEnrollmentState>([
   "connecting",
 ]);
 
-export default function UserMachinesPage() {
-  const [items, setItems] = React.useState<UserMachine[]>([]);
-  const [overview, setOverview] = React.useState<UserMachineOverview>();
-  const [enrollment, setEnrollment] = React.useState<UserMachineEnrollment | UserMachineEnrollmentStart>();
+export default function MachinesPage() {
+  const [items, setItems] = React.useState<Machine[]>([]);
+  const [overview, setOverview] = React.useState<MachineOverview>();
+  const [enrollment, setEnrollment] = React.useState<MachineEnrollment | MachineEnrollmentStart>();
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string>();
   const [code, setCode] = React.useState("");
@@ -77,11 +77,11 @@ export default function UserMachinesPage() {
     setLoading(true);
     setLoadError(undefined);
     try {
-      const [machines, usage] = await Promise.all([listUserMachines(), getUserMachineOverview()]);
+      const [machines, usage] = await Promise.all([listMachines(), getMachineOverview()]);
       setItems(machines);
       setOverview(usage);
     } catch (error) {
-      setLoadError(errorMessage(error, "Unable to load user machines."));
+      setLoadError(errorMessage(error, "Unable to load machines."));
     } finally {
       setLoading(false);
     }
@@ -91,7 +91,7 @@ export default function UserMachinesPage() {
     const initialRefresh = window.setTimeout(() => void refresh(), 0);
     const enrollmentID = sessionStorage.getItem(ACTIVE_ENROLLMENT_KEY);
     if (enrollmentID) {
-      void getUserMachineEnrollment(enrollmentID)
+      void getMachineEnrollment(enrollmentID)
         .then(setEnrollment)
         .catch(() => sessionStorage.removeItem(ACTIVE_ENROLLMENT_KEY));
     }
@@ -101,7 +101,7 @@ export default function UserMachinesPage() {
   React.useEffect(() => {
     if (!enrollment || !POLLED_STATES.has(enrollment.state)) return;
     const timer = window.setInterval(() => {
-      void getUserMachineEnrollment(enrollment.id)
+      void getMachineEnrollment(enrollment.id)
         .then((next) => {
           setEnrollment((current) => ({ ...current, ...next }));
           if (next.state === "ready") void refresh();
@@ -114,7 +114,7 @@ export default function UserMachinesPage() {
   async function startEnrollment() {
     setBusy("start");
     try {
-      const result = await startUserMachineEnrollment(`dashboard-${crypto.randomUUID()}`);
+      const result = await startMachineEnrollment(`dashboard-${crypto.randomUUID()}`);
       setEnrollment(result);
       sessionStorage.setItem(ACTIVE_ENROLLMENT_KEY, result.id);
       toast.success("Enrollment started.");
@@ -128,13 +128,13 @@ export default function UserMachinesPage() {
   async function approve() {
     setBusy("approve");
     try {
-      await approveUserMachine(code.trim());
+      await approveMachine(code.trim());
       setCode("");
       toast.success("User machine approved.");
-      if (enrollment) setEnrollment(await getUserMachineEnrollment(enrollment.id));
+      if (enrollment) setEnrollment(await getMachineEnrollment(enrollment.id));
       await refresh();
     } catch (error) {
-      toast.error("Couldn't approve user machine.", { description: errorMessage(error, "Check the pairing code and available seats.") });
+      toast.error("Couldn't approve machine.", { description: errorMessage(error, "Check the pairing code and available seats.") });
     } finally {
       setBusy(undefined);
     }
@@ -143,10 +143,10 @@ export default function UserMachinesPage() {
   async function deny() {
     setBusy("deny");
     try {
-      await denyUserMachine(code.trim());
+      await denyMachine(code.trim());
       setCode("");
       toast.success("Pairing denied.");
-      if (enrollment) setEnrollment(await getUserMachineEnrollment(enrollment.id));
+      if (enrollment) setEnrollment(await getMachineEnrollment(enrollment.id));
     } catch (error) {
       toast.error("Couldn't deny pairing.", { description: errorMessage(error, "Check the pairing code and try again.") });
     } finally {
@@ -159,11 +159,11 @@ export default function UserMachinesPage() {
     setBusy(action);
     try {
       if (action === "retry") {
-        setEnrollment(await retryUserMachineEnrollment(enrollment.id));
+        setEnrollment(await retryMachineEnrollment(enrollment.id));
         toast.success("Enrollment restarted with new installation material.");
       } else {
-        await cancelUserMachineEnrollment(enrollment.id);
-        setEnrollment(await getUserMachineEnrollment(enrollment.id));
+        await cancelMachineEnrollment(enrollment.id);
+        setEnrollment(await getMachineEnrollment(enrollment.id));
         toast.success("Enrollment cancelled.");
       }
     } catch (error) {
@@ -176,21 +176,21 @@ export default function UserMachinesPage() {
   async function act(id: string, kind: "disconnect" | "delete") {
     setBusy(id + kind);
     try {
-      if (kind === "disconnect") await disconnectUserMachine(id);
-      else await deleteUserMachine(id);
+      if (kind === "disconnect") await disconnectMachine(id);
+      else await deleteMachine(id);
       toast.success(kind === "disconnect" ? "User machine disconnected." : "User machine deleted.");
       await refresh();
     } catch (error) {
-      toast.error(`Couldn't ${kind} user machine.`, { description: errorMessage(error, "Try again.") });
+      toast.error(`Couldn't ${kind} machine.`, { description: errorMessage(error, "Try again.") });
     } finally {
       setBusy(undefined);
     }
   }
 
-  async function updateAvailability(machine: UserMachine, mode: AvailabilityMode) {
+  async function updateAvailability(machine: Machine, mode: AvailabilityMode) {
     setBusy(machine.id + "availability");
     try {
-      const availability = await setUserMachineAvailability(machine.id, mode, machine.availability.desired_version);
+      const availability = await setMachineAvailability(machine.id, mode, machine.availability.desired_version);
       setItems((current) => current.map((item) => item.id === machine.id ? { ...item, availability } : item));
       toast.success(mode === "keep_awake" ? "Keep awake saved." : "Normal sleep restored.", {
         description: availability.status === "applied" ? "The machine confirmed the change." : "Paperboat will apply it when the machine reconnects.",
@@ -210,12 +210,12 @@ export default function UserMachinesPage() {
     <>
       <PageHeader
         eyebrow="Workspace"
-        title="User machines"
+        title="Machines"
         description="Manage macOS and Linux machines that keep their workspace on your hardware."
         actions={
           <Button disabled={busy === "start" || overview?.available_seats === 0} onClick={() => void startEnrollment()}>
             {busy === "start" ? <Spinner /> : <HugeiconsIcon icon={Add01Icon} />}
-            Add user machine
+            Add machine
           </Button>
         }
       />
@@ -239,7 +239,7 @@ export default function UserMachinesPage() {
 
       {loadError ? (
         <section role="alert" className="flex flex-col gap-3 border-y py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div><h2 className="font-medium">User machines unavailable</h2><p className="text-sm text-muted-foreground">{loadError}</p></div>
+          <div><h2 className="font-medium">Machines unavailable</h2><p className="text-sm text-muted-foreground">{loadError}</p></div>
           <Button variant="outline" onClick={() => void refresh()}><HugeiconsIcon icon={RefreshIcon} />Retry</Button>
         </section>
       ) : null}
@@ -249,8 +249,8 @@ export default function UserMachinesPage() {
           {!loading && !loadError && items.length === 0 ? (
             <div className="col-span-full flex min-h-56 flex-col items-center justify-center gap-3 border-y text-center">
               <HugeiconsIcon icon={CloudServerIcon} className="size-7 text-muted-foreground" />
-              <h2 className="font-heading text-lg font-semibold">No user machines</h2>
-              <Button variant="outline" onClick={() => void startEnrollment()}><HugeiconsIcon icon={Add01Icon} />Add user machine</Button>
+              <h2 className="font-heading text-lg font-semibold">No machines</h2>
+              <Button variant="outline" onClick={() => void startEnrollment()}><HugeiconsIcon icon={Add01Icon} />Add machine</Button>
             </div>
           ) : items.map((machine) => (
             <Card key={machine.id} className="rounded-lg">
@@ -274,12 +274,12 @@ export default function UserMachinesPage() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Disconnect {machine.display_name}?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Paperboat will revoke this machine&apos;s helper, route, and terminal access. Its identity remains available for repair, but active sessions will stop.
+                        Paperboat will revoke this machine&apos;s host runtime, route, and terminal access. Its interactive identity remains available, but active hosted sessions will stop.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction variant="destructive" onClick={() => void act(machine.id, "disconnect")}>Disconnect user machine</AlertDialogAction>
+                      <AlertDialogAction variant="destructive" onClick={() => void act(machine.id, "disconnect")}>Disconnect machine</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -291,12 +291,12 @@ export default function UserMachinesPage() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete {machine.display_name}?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This permanently removes the user-machine record, revokes its access, closes active sessions, and releases its seat. Enroll it again to reconnect.
+                        This permanently removes the machine record, revokes its access, closes active sessions, and releases its seat. Enroll it again to reconnect.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction variant="destructive" onClick={() => void act(machine.id, "delete")}>Delete user machine</AlertDialogAction>
+                      <AlertDialogAction variant="destructive" onClick={() => void act(machine.id, "delete")}>Delete machine</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -307,7 +307,7 @@ export default function UserMachinesPage() {
 
         <aside>
           <Card className="rounded-lg">
-            <CardHeader><CardTitle className="font-heading text-base">Approve pairing</CardTitle><CardDescription>Confirm the code shown on the user machine.</CardDescription></CardHeader>
+            <CardHeader><CardTitle className="font-heading text-base">Approve pairing</CardTitle><CardDescription>Confirm the code shown on the machine.</CardDescription></CardHeader>
             <CardContent className="space-y-3">
               <Input aria-label="Pairing code" value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="ABCD1234" className="font-mono" maxLength={32} />
               {enrollment?.user_code ? <button className="text-left font-mono text-sm text-primary underline-offset-4 hover:underline" onClick={() => setCode(enrollment.user_code ?? "")}>Use {enrollment.user_code}</button> : null}
@@ -316,7 +316,7 @@ export default function UserMachinesPage() {
               <AlertDialog>
                 <AlertDialogTrigger render={<Button variant="outline" disabled={!code.trim() || busy === "deny"} />}><HugeiconsIcon icon={Cancel01Icon} />Deny</AlertDialogTrigger>
                 <AlertDialogContent>
-                  <AlertDialogHeader><AlertDialogTitle>Deny this pairing?</AlertDialogTitle><AlertDialogDescription>No user machine or seat will be created. This pairing code cannot be used again.</AlertDialogDescription></AlertDialogHeader>
+                  <AlertDialogHeader><AlertDialogTitle>Deny this pairing?</AlertDialogTitle><AlertDialogDescription>No machine or seat will be created. This pairing code cannot be used again.</AlertDialogDescription></AlertDialogHeader>
                   <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => void deny()}>Deny pairing</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
@@ -330,7 +330,7 @@ export default function UserMachinesPage() {
   );
 }
 
-function AvailabilityControl({ machine, busy, onChange, onRetry }: { machine: UserMachine; busy: boolean; onChange: (mode: AvailabilityMode) => void; onRetry: () => void }) {
+function AvailabilityControl({ machine, busy, onChange, onRetry }: { machine: Machine; busy: boolean; onChange: (mode: AvailabilityMode) => void; onRetry: () => void }) {
   const policy = machine.availability;
   const keepAwake = policy.desired_mode === "keep_awake";
   const drifted = policy.observed_version !== policy.desired_version || policy.observed_mode !== policy.desired_mode;
@@ -362,12 +362,12 @@ function AvailabilityControl({ machine, busy, onChange, onRetry }: { machine: Us
       </div>
       {policy.status === "offline" ? <p className="text-xs text-amber-700 dark:text-amber-400">Saved. The machine will apply this automatically after it reconnects.</p> : null}
       {policy.status === "unsupported" ? <p className="text-xs text-destructive">This host service cannot manage sleep. Update Paperboat on the machine, then retry.</p> : null}
-      {policy.status === "error" ? <div className="flex items-center justify-between gap-3"><p className="text-xs text-destructive">The host service could not apply this setting. Run <code className="font-mono">pbh doctor</code> locally; uninstall restores the original power settings.</p><Button size="sm" variant="outline" onClick={onRetry}><HugeiconsIcon icon={RefreshIcon} />Retry</Button></div> : null}
+      {policy.status === "error" ? <div className="flex items-center justify-between gap-3"><p className="text-xs text-destructive">The host service could not apply this setting. Run <code className="font-mono">pb doctor</code> locally; uninstall restores the original power settings.</p><Button size="sm" variant="outline" onClick={onRetry}><HugeiconsIcon icon={RefreshIcon} />Retry</Button></div> : null}
     </div>
   );
 }
 
-function EnrollmentPanel({ enrollment, busy, onCancel, onRetry }: { enrollment: UserMachineEnrollment | UserMachineEnrollmentStart; busy?: string; onCancel: () => void; onRetry: () => void }) {
+function EnrollmentPanel({ enrollment, busy, onCancel, onRetry }: { enrollment: MachineEnrollment | MachineEnrollmentStart; busy?: string; onCancel: () => void; onRetry: () => void }) {
   const command = "bootstrap_command" in enrollment ? enrollment.bootstrap_command : "";
   const retryable = ["cancelled", "expired", "denied", "failed_retryable"].includes(enrollment.state);
   const cancellable = ["awaiting_bootstrap", "awaiting_approval", "failed_retryable"].includes(enrollment.state);
@@ -410,10 +410,10 @@ function Metric({ label, value, detail }: { label: string; value: string; detail
 }
 
 function OverviewSkeleton() {
-  return <section aria-label="Loading user-machine usage" className="grid rounded-lg border sm:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="space-y-3 p-4"><Skeleton className="h-3 w-24" /><Skeleton className="h-8 w-28" /><Skeleton className="h-3 w-20" /></div>)}</section>;
+  return <section aria-label="Loading machine usage" className="grid rounded-lg border sm:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="space-y-3 p-4"><Skeleton className="h-3 w-24" /><Skeleton className="h-8 w-28" /><Skeleton className="h-3 w-20" /></div>)}</section>;
 }
 
-function enrollmentVariant(state: UserMachineEnrollmentState): "success" | "warning" | "error" | "outline" | "info" {
+function enrollmentVariant(state: MachineEnrollmentState): "success" | "warning" | "error" | "outline" | "info" {
   if (state === "ready") return "success";
   if (["cancelled", "expired", "denied", "failed_retryable", "revoked", "deleted"].includes(state)) return "error";
   if (["awaiting_bootstrap", "awaiting_approval"].includes(state)) return "warning";

@@ -13,7 +13,7 @@ export interface Me {
   workos_subject: string;
 }
 
-export interface UserMachine {
+export interface Machine {
   id: string;
   environment_id: string;
   display_name: string;
@@ -24,6 +24,10 @@ export interface UserMachine {
   seat_state: "reserved" | "occupied" | "released";
   online: boolean;
   runtime_versions: Record<string, string>;
+  setup_roles: Array<"interactive" | "host">;
+  machine_kind: "personal" | "hosted";
+  public_identity_key: string;
+  installation_generation: number;
   enrolled_at?: string;
   last_seen_at?: string;
 	availability: AvailabilityPolicy;
@@ -46,7 +50,7 @@ export interface AvailabilityPolicy {
 	update_rollbacks: number;
 }
 
-export interface UserMachineListResponse { items: UserMachine[] }
+export interface MachineListResponse { items: Machine[] }
 
 export interface Preview {
   id: string;
@@ -65,7 +69,7 @@ export interface Preview {
   expires_at?: string;
 }
 
-export interface UserMachineOverview {
+export interface MachineOverview {
   entitlement_state: string;
   product_code?: string;
   period_start?: string;
@@ -80,7 +84,7 @@ export interface UserMachineOverview {
   bootstrap_command?: string;
 }
 
-export type UserMachineEnrollmentState =
+export type MachineEnrollmentState =
   | "awaiting_bootstrap"
   | "awaiting_approval"
   | "approved"
@@ -96,14 +100,14 @@ export type UserMachineEnrollmentState =
   | "disconnected"
   | "deleted";
 
-export interface UserMachineEnrollment {
+export interface MachineEnrollment {
   id: string;
   operation_id: string;
-  state: UserMachineEnrollmentState;
+  state: MachineEnrollmentState;
   generation: number;
   pairing_id?: string;
   user_code?: string;
-  user_machine_id?: string;
+  machine_id?: string;
   requested_display_name?: string;
   platform?: string;
   architecture?: string;
@@ -114,7 +118,7 @@ export interface UserMachineEnrollment {
   updated_at: string;
 }
 
-export interface UserMachineEnrollmentStart extends UserMachineEnrollment {
+export interface MachineEnrollmentStart extends MachineEnrollment {
   bootstrap_token: string;
   bootstrap_command: string;
 }
@@ -145,7 +149,7 @@ export interface DeviceRequest {
 
 export interface CLIClientSession {
   cli_client_session_id: string;
-  client_id: "paperboat-cli";
+  client_id: "paperboat";
   client_label: string;
   device_type: "desktop" | "server" | "container";
   os: string;
@@ -332,6 +336,7 @@ export interface ConfigSyncPathSummary {
 }
 
 export interface ConfigSyncEnvironmentStatus {
+  machine_id: string;
   environment_id: string;
   display_name: string;
   profile: "hosted" | "byod";
@@ -341,6 +346,7 @@ export interface ConfigSyncEnvironmentStatus {
   assignment_version?: number;
   repository_id?: string;
   repository_name?: string;
+	mode?: "pull_only" | "push_only" | "bidirectional";
   consent_state?: "not_required" | "pending" | "accepted" | "stale" | "revoked";
   warning_revision?: string;
   helper_id?: string;
@@ -349,19 +355,22 @@ export interface ConfigSyncEnvironmentStatus {
   last_successful_sync_at?: string;
   updated_at?: string;
   remote_revision?: string;
-  pending_path_count: number;
-  classifier_pending: ConfigSyncPathSummary[];
+  manifest_health?: "healthy" | "empty" | "missing" | "invalid";
+  manifest_revision?: string;
+  managed_path_count: number;
+  pending_clean_path_count: number;
+  last_applied_revision?: string;
+  last_published_revision?: string;
   skipped: ConfigSyncPathSummary[];
   conflicts: ConfigSyncPathSummary[];
   error_code?: string;
   recovery_actions: string[];
   policy_revision?: string;
-  key_version?: number;
   sync_revision?: number;
 }
 
 export interface ConfigSyncStatus {
-  policy: { mode: "disabled" | "read_only" | "leased_writes"; byod_enabled: boolean; revision: string; max_file_bytes: number; max_batch_bytes: number; format: string; mandatory_exclusions: string[] };
+  policy: { mode: "disabled" | "read_only" | "leased_writes"; byod_enabled: boolean; revision: string; max_file_bytes: number; max_batch_bytes: number; format: string; manifest_contract: string; manifest_max_bytes: number; manifest_max_lines: number; manifest_max_pattern_bytes: number };
   state: ConfigSyncState;
   environments: ConfigSyncEnvironmentStatus[];
 }
@@ -376,8 +385,10 @@ export interface ConfigRepository {
 
 export interface ConfigAssignment {
   id: string;
+  machine_id: string;
   environment_id: string;
   repository_id?: string;
+	mode: "pull_only" | "push_only" | "bidirectional";
   consent_state: "not_required" | "pending" | "accepted" | "stale" | "revoked";
   warning_revision?: string;
   version: number;
@@ -388,19 +399,16 @@ export interface ConfigWarningFacts {
   machine_name: string;
   repository_name: string;
   canonical_scope: string;
-  file_categories: string[];
-  encrypted: boolean;
-  automatic_pull_and_push: boolean;
+	mode: "pull_only" | "push_only" | "bidirectional";
+	manifest_scope: string;
+	repository_visibility: string;
+	history_retention: string;
   conflict_behavior: string;
+	force_behavior: string;
   disable_action: string;
   offline_behavior: string;
-  recovery_consequence: string;
-  classifier_metadata_disclosure: string;
+	access_consequence: string;
 }
-
-export type ConfigClassificationDecision = "portable" | "project_only" | "exclude";
-export interface ConfigClassificationOverride { path: string; decision: ConfigClassificationDecision; mandatory: boolean; updated_at: string }
-export interface ConfigRecoveryKey { identity: string; recipient: string; key_version: number }
 
 export interface CheckoutSession {
   url: string;

@@ -16,12 +16,73 @@ export class ApiError extends Error {
   requestId?: string;
 
   constructor(code: string, message: string, status: number, requestId?: string) {
-    super(message);
+    super(apiErrorMessage(code, message, status, requestId));
     this.name = "ApiError";
     this.code = code;
     this.status = status;
     this.requestId = requestId;
   }
+}
+
+export function apiErrorMessage(
+  code: string,
+  serverMessage: string,
+  status: number,
+  requestId?: string,
+): string {
+  let message: string;
+  switch (code) {
+    case "unauthenticated":
+    case "credential_invalid":
+      message = "Your session is no longer valid. Sign in again, then retry.";
+      break;
+    case "payment_required":
+    case "entitlement_lost":
+      message = "Your Paperboat plan is inactive. Restore billing access, then retry.";
+      break;
+    case "credits_exhausted":
+      message = "Your account is out of credits. Add credits, then retry.";
+      break;
+    case "machine_offline":
+      message = "This machine is offline. Bring it online, then retry.";
+      break;
+    case "machine_not_ready":
+    case "tunnel_unavailable":
+      message = "This environment is still becoming available. Retry in a moment.";
+      break;
+    case "machine_revoked":
+      message = "This machine has been disconnected. Reconnect it before retrying.";
+      break;
+    case "not_found":
+    case "not_found_or_forbidden":
+      message = "This item no longer exists or is not available to this account.";
+      break;
+    default:
+      if ([400, 409, 422].includes(status) && serverMessage.trim()) {
+        message = serverMessage.trim();
+      } else if (status === 403) {
+        message = "You do not have permission to perform this action.";
+      } else if (status === 404) {
+        message = "The requested item was not found. Refresh the page and retry.";
+      } else if (status === 409 && serverMessage.trim()) {
+        message = serverMessage.trim();
+      } else if (status === 429) {
+        message = "Paperboat is receiving too many requests. Wait a moment, then retry.";
+      } else if (status >= 500 || status === 0) {
+        message = "Paperboat is temporarily unavailable. Retry in a moment.";
+      } else {
+        message = "Paperboat could not complete this request. Refresh the page and retry.";
+      }
+  }
+
+  if (requestId && (status >= 500 || status === 0)) {
+    message += ` Request ID: ${requestId}.`;
+  }
+  return message;
+}
+
+export function displayErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof ApiError ? error.message : fallback;
 }
 
 interface Envelope<T> {
@@ -43,7 +104,7 @@ export async function unwrap<T>(res: Response): Promise<T> {
     const err = body?.error;
     throw new ApiError(
       err?.code ?? "internal_error",
-      err?.message ?? `Request failed with status ${res.status}.`,
+      err?.message ?? "",
       res.status,
       err?.request_id,
     );

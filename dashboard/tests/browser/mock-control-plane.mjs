@@ -13,18 +13,22 @@ const warning = {
   machine_name: "Personal Linux",
   repository_name: repository.display_name,
   canonical_scope: "/home/sailor",
-  file_categories: ["agent settings", "developer tool settings", "shell configuration"],
-  encrypted: true,
-  automatic_pull_and_push: true,
+  mode: "pull_only",
+  manifest_scope:
+    "Only home-relative files and directories explicitly listed in the repository's .pbinclude manifest are managed.",
+  repository_visibility:
+    "Selected configuration content is stored as ordinary plaintext in the connected private Git repository.",
+  history_retention:
+    "Git history can retain earlier and removed versions after files are changed, un-managed, or deleted.",
   conflict_behavior:
     "Conflicting local and remote versions are both preserved and automatic writes stop until you resolve them.",
   disable_action: "Remove consent or unassign the repository to stop synchronization immediately.",
   offline_behavior:
     "Offline changes remain local; synchronization requires fresh server authorization after reconnecting.",
-  recovery_consequence:
-    "Keep the recovery identity offline. Losing it can make encrypted repository contents unrecoverable.",
-  classifier_metadata_disclosure:
-    "Normalized relative paths and bounded file metadata may be sent to the configured classifier; file contents are never sent.",
+  access_consequence:
+    "Anyone who gains repository or provider-account access may read selected configuration content and retained history.",
+  force_behavior:
+    "Force actions are explicit, scoped, and create recoverable repository history without rewriting Git history.",
 };
 
 let staleConsentMutation = false;
@@ -34,20 +38,24 @@ let hosted;
 function reset() {
   staleConsentMutation = false;
   byod = {
+    machine_id: "mch_byod",
     environment_id: "env_byod",
     display_name: "Personal Linux",
     profile: "byod",
     environment_state: "online",
     state: "disabled",
-    pending_path_count: 0,
-    classifier_pending: [],
+    mode: "pull_only",
+    manifest_health: "empty",
+    manifest_revision: "a".repeat(64),
+    managed_path_count: 0,
+    pending_clean_path_count: 0,
     skipped: [],
     conflicts: [],
     recovery_actions: [],
-    key_version: 1,
     sync_revision: 0,
   };
   hosted = {
+    machine_id: "mch_hosted",
     environment_id: "env_hosted",
     display_name: "Hosted development",
     profile: "hosted",
@@ -55,22 +63,24 @@ function reset() {
     state: "conflict",
     assignment_id: "cfgasn_hosted",
     assignment_version: 4,
+    mode: "bidirectional",
     repository_id: repository.id,
     repository_name: repository.display_name,
     consent_state: "not_required",
     helper_id: "helper_hosted",
     helper_generation: 2,
     remote_revision: "remote_head_1",
-    pending_path_count: 1,
-    classifier_pending: [
-      { path: ".config/new-tool/settings.json", reason: "classifier_unavailable" },
-    ],
+    manifest_health: "healthy",
+    manifest_revision: "b".repeat(64),
+    managed_path_count: 3,
+    pending_clean_path_count: 0,
+    last_applied_revision: "remote_head_1",
+    last_published_revision: "remote_head_1",
     skipped: [{ path: ".cache/oversized.bin", bytes: 6_000_000, reason: "file_too_large" }],
     conflicts: [
       { path: ".config/editor/settings.json", reason: "changed_both", revision: "conflict_1" },
     ],
     recovery_actions: ["resolve_conflict"],
-    key_version: 1,
     sync_revision: 8,
   };
 }
@@ -149,20 +159,26 @@ const server = createServer(async (request, response) => {
         revision: "2",
         max_file_bytes: 5_242_880,
         max_batch_bytes: 26_214_400,
-        format: "paperboat-chezmoi-age-v1",
-        mandatory_exclusions: [".ssh/**", ".gnupg/**"],
+        format: "paperboat-config-plaintext-v1",
+        manifest_contract: "paperboat-manifest-v1",
+        manifest_max_bytes: 262_144,
+        manifest_max_lines: 4_096,
+        manifest_max_pattern_bytes: 1_024,
       },
       state: environments.some((item) => item.state === "conflict") ? "conflict" : "healthy",
       environments,
     });
   }
-  if (path === "/v1/config-sync/overrides") return success(response, []);
   if (
-    path === "/v1/environments/env_byod/config-assignment" &&
+    path === "/v1/machines/mch_byod/config-assignment" &&
     request.method === "PUT"
   ) {
     const body = await readJSON(request);
-    if (body.expected_version !== 0 || body.repository_id !== repository.id) {
+    if (
+      body.expected_version !== 0 ||
+      body.repository_id !== repository.id ||
+      body.mode !== "pull_only"
+    ) {
       return failure(response, 409, "assignment_conflict", "The assignment changed. Refresh and retry.");
     }
     Object.assign(byod, {
@@ -171,23 +187,26 @@ const server = createServer(async (request, response) => {
       assignment_version: 1,
       repository_id: repository.id,
       repository_name: repository.display_name,
+      mode: body.mode,
       consent_state: "pending",
       warning_revision: warning.revision,
     });
     return success(response, {
       id: "cfgasn_byod",
+      machine_id: byod.machine_id,
       environment_id: byod.environment_id,
       repository_id: repository.id,
+      mode: body.mode,
       consent_state: "pending",
       warning_revision: warning.revision,
       version: 1,
     });
   }
-  if (path === "/v1/environments/env_byod/config-assignment/warning") {
+  if (path === "/v1/machines/mch_byod/config-assignment/warning") {
     return success(response, warning);
   }
   if (
-    path === "/v1/environments/env_byod/config-assignment/consent" &&
+    path === "/v1/machines/mch_byod/config-assignment/consent" &&
     request.method === "POST"
   ) {
     const body = await readJSON(request);
@@ -208,8 +227,10 @@ const server = createServer(async (request, response) => {
     });
     return success(response, {
       id: "cfgasn_byod",
+      machine_id: byod.machine_id,
       environment_id: byod.environment_id,
       repository_id: repository.id,
+      mode: byod.mode,
       consent_state: "accepted",
       warning_revision: warning.revision,
       version: 2,
@@ -229,11 +250,33 @@ const server = createServer(async (request, response) => {
       return failure(response, 409, "conflict_revision_stale", "Conflict details are stale.");
     }
     hosted.conflicts = [];
-    hosted.pending_path_count = 0;
+    hosted.pending_clean_path_count = 0;
     hosted.recovery_actions = [];
     hosted.state = "healthy";
     hosted.sync_revision += 1;
     return success(response, { id: "cfgres_test", action: body.action });
+  }
+  if (
+    path === "/v1/config-sync/environments/env_hosted/force" &&
+    request.method === "POST"
+  ) {
+    const body = await readJSON(request);
+    if (
+      body.scope !== "path" ||
+      body.path !== hosted.conflicts[0]?.path ||
+      body.conflict_revision !== "conflict_1" ||
+      body.expected_remote_revision !== "remote_head_1" ||
+      body.expected_assignment_version !== 4 ||
+      body.action !== "force_pull" ||
+      body.confirmation !== "FORCE PULL"
+    ) {
+      return failure(response, 400, "force_confirmation_required", "Force confirmation is invalid.");
+    }
+    hosted.conflicts = [];
+    hosted.recovery_actions = [];
+    hosted.state = "healthy";
+    hosted.sync_revision += 1;
+    return success(response, { id: "cfgforce_test", scope: body.scope, action: body.action }, 202);
   }
 
   return failure(response, 404, "not_found", "The test endpoint was not found.");

@@ -6,12 +6,9 @@ import {
   Alert02Icon,
   CheckmarkCircle02Icon,
   Configuration01Icon,
-  Copy01Icon,
-  Download04Icon,
   GitBranchIcon,
   GithubIcon,
   InformationCircleIcon,
-  Key01Icon,
   Link01Icon,
   Unlink01Icon,
 } from "@hugeicons/core-free-icons";
@@ -34,26 +31,23 @@ import {
   acceptConfigConsent,
   assignConfigRepository,
   connectConfigRepository,
-  deleteConfigSyncOverride,
   disconnectConfigRepository,
-  exportConfigRecoveryKey,
+  forceConfigSync,
   getConfigWarning,
   listConfigRepositories,
   listConfigRepositoryCandidates,
-  putConfigSyncOverride,
   removeConfigConsent,
   resolveConfigConflict,
-  rotateConfigRecoveryKey,
   unassignConfigRepository,
-  useConfigSyncOverrides,
   useConfigSyncStatus,
+	type ConfigAssignmentMode,
+  type ConfigForceAction,
   type ConfigRepositoryCandidate,
   type ConfigConflictResolutionAction,
 } from "@/lib/api/config-sync";
 import { startGitHubOAuth } from "@/lib/api/github";
+import { displayErrorMessage } from "@/lib/api/client";
 import type {
-  ConfigClassificationDecision,
-  ConfigRecoveryKey,
   ConfigRepository,
   ConfigSyncEnvironmentStatus,
   ConfigSyncPathSummary,
@@ -80,7 +74,7 @@ export default function ConfigurationPage() {
       setCandidates(available.items);
       setCatalogError(undefined);
     } catch (error) {
-      setCatalogError(error instanceof Error ? error.message : "Repository access is unavailable.");
+      setCatalogError(displayErrorMessage(error, "Repository access is unavailable. Refresh the page and retry."));
     } finally {
       setLoadingCatalog(false);
     }
@@ -133,6 +127,8 @@ export function ConfigurationStatusView({
   const [warning, setWarning] = React.useState<{ environment: ConfigSyncEnvironmentStatus; facts: ConfigWarningFacts }>();
   const [accepted, setAccepted] = React.useState(false);
   const [disconnecting, setDisconnecting] = React.useState<ConfigRepository>();
+  const [force, setForce] = React.useState<{ environment: ConfigSyncEnvironmentStatus; conflict?: ConfigSyncPathSummary; action: ConfigForceAction }>();
+  const [forceAccepted, setForceAccepted] = React.useState(false);
   const [authorizing, setAuthorizing] = React.useState(false);
 
   const connectedIDs = new Set(repositories.map((repository) => repository.external_ref));
@@ -141,7 +137,6 @@ export function ConfigurationStatusView({
   const conflicts = data.environments.flatMap((environment) =>
     environment.conflicts.map((item) => ({ ...item, environment })),
   );
-  const classifierPending = flattenSummaries(data.environments, "classifier_pending");
 
   async function mutate(key: string, operation: () => Promise<unknown>, success: string): Promise<boolean> {
     setBusy(key);
@@ -152,7 +147,7 @@ export function ConfigurationStatusView({
       return true;
     } catch (error) {
       toast.error("Configuration could not be changed.", {
-        description: error instanceof Error ? error.message : "Please refresh and try again.",
+        description: displayErrorMessage(error, "Refresh the page and try again."),
       });
       return false;
     } finally {
@@ -169,7 +164,7 @@ export function ConfigurationStatusView({
       window.location.href = authorization_url;
     } catch (error) {
       toast.error("GitHub authorization could not be started.", {
-        description: error instanceof Error ? error.message : "Please try again.",
+        description: displayErrorMessage(error, "Please try again."),
       });
       setAuthorizing(false);
     }
@@ -183,23 +178,25 @@ export function ConfigurationStatusView({
     }
   }
 
-  async function assign(environment: ConfigSyncEnvironmentStatus, repositoryID: string) {
+  async function assign(environment: ConfigSyncEnvironmentStatus, repositoryID: string, mode: ConfigAssignmentMode) {
     if (!repositoryID) return;
     setBusy(`assign:${environment.environment_id}`);
     try {
       const assignment = await assignConfigRepository(
-        environment.environment_id,
+        environment.machine_id,
         repositoryID,
+		mode,
         environment.assignment_version ?? 0,
       );
       if (environment.profile === "byod") {
-        const facts = await getConfigWarning(environment.environment_id);
+        const facts = await getConfigWarning(environment.machine_id);
         setWarning({
           environment: {
             ...environment,
             assignment_id: assignment.id,
             assignment_version: assignment.version,
             repository_id: repositoryID,
+			mode,
             consent_state: assignment.consent_state,
           },
           facts,
@@ -211,7 +208,7 @@ export function ConfigurationStatusView({
       refresh();
     } catch (error) {
       toast.error("Repository could not be assigned.", {
-        description: error instanceof Error ? error.message : "Refresh the page and try again.",
+        description: displayErrorMessage(error, "Refresh the page and try again."),
       });
     } finally {
       setBusy(undefined);
@@ -221,11 +218,11 @@ export function ConfigurationStatusView({
   async function openWarning(environment: ConfigSyncEnvironmentStatus) {
     setBusy(`warning:${environment.environment_id}`);
     try {
-      setWarning({ environment, facts: await getConfigWarning(environment.environment_id) });
+      setWarning({ environment, facts: await getConfigWarning(environment.machine_id) });
       setAccepted(false);
     } catch (error) {
       toast.error("Consent details are unavailable.", {
-        description: error instanceof Error ? error.message : "Refresh the page and try again.",
+        description: displayErrorMessage(error, "Refresh the page and try again."),
       });
     } finally {
       setBusy(undefined);
@@ -237,7 +234,7 @@ export function ConfigurationStatusView({
     const enabled = await mutate(
       `consent:${warning.environment.environment_id}`,
       () => acceptConfigConsent(
-        warning.environment.environment_id,
+        warning.environment.machine_id,
         warning.facts.revision,
         warning.environment.assignment_version ?? 0,
       ),
@@ -268,12 +265,33 @@ export function ConfigurationStatusView({
     );
   }
 
+  async function confirmForce() {
+    if (!force || !forceAccepted || !force.environment.remote_revision || !force.environment.assignment_version) return;
+    const queued = await mutate(
+      `force:${force.environment.environment_id}:${force.conflict?.path ?? "config"}`,
+      () => forceConfigSync(force.environment.environment_id, {
+        scope: force.conflict ? "path" : "config",
+        path: force.conflict?.path,
+        conflict_revision: force.conflict?.revision,
+        expected_remote_revision: force.environment.remote_revision!,
+        expected_assignment_version: force.environment.assignment_version!,
+        action: force.action,
+        confirmation: force.action === "force_pull" ? "FORCE PULL" : "FORCE PUSH",
+      }),
+      `Force ${force.action === "force_pull" ? "pull" : "push"} queued for ${force.conflict?.path ?? force.environment.display_name}.`,
+    );
+    if (queued) {
+      setForce(undefined);
+      setForceAccepted(false);
+    }
+  }
+
   return (
     <>
       <PageHeader
         eyebrow="Workspace"
         title="Configuration"
-        description="Connect private repositories, choose where each one applies, and review encrypted synchronization health."
+        description="Connect private repositories, choose where each one applies, and review synchronization health."
       />
 
       {refreshError || catalogError ? (
@@ -367,6 +385,7 @@ export function ConfigurationStatusView({
             <Metric label="Personal machines" value={data.policy.byod_enabled ? "Enabled" : "Disabled"} />
             <Metric label="Format" value={data.policy.format} mono />
             <Metric label="Revision" value={data.policy.revision} mono />
+			<Metric label="Selection" value={data.policy.manifest_contract} mono />
           </CardContent>
         </Card>
       </section>
@@ -412,16 +431,36 @@ export function ConfigurationStatusView({
                           aria-label={`Repository for ${environment.display_name}`}
                           value={environment.repository_id ?? ""}
                           disabled={Boolean(busy) || repositories.length === 0}
-                          onChange={(event) => void assign(environment, event.target.value)}
+						  onChange={(event) => void assign(environment, event.target.value, environment.mode ?? "pull_only")}
                         >
                           <NativeSelectOption value="">{repositories.length ? "Unassigned" : "Connect a repository first"}</NativeSelectOption>
                           {repositories.filter((repository) => repository.state === "active").map((repository) => (
                             <NativeSelectOption key={repository.id} value={repository.id}>{repository.display_name}</NativeSelectOption>
                           ))}
                         </NativeSelect>
+						<NativeSelect
+						  className="mt-2"
+						  aria-label={`Synchronization mode for ${environment.display_name}`}
+						  value={environment.mode ?? "pull_only"}
+						  disabled={Boolean(busy) || !environment.repository_id}
+						  onChange={(event) => {
+							if (!environment.repository_id) return;
+							void assign(environment, environment.repository_id, event.target.value as ConfigAssignmentMode);
+						  }}
+						>
+						  <NativeSelectOption value="pull_only">Pull only</NativeSelectOption>
+						  <NativeSelectOption value="push_only">Push only</NativeSelectOption>
+						  <NativeSelectOption value="bidirectional">Bidirectional</NativeSelectOption>
+						</NativeSelect>
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={badge.status} label={badge.label} />
+                        {environment.manifest_health ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Manifest {environment.manifest_health.replaceAll("_", " ")} · {environment.managed_path_count} managed
+                            {environment.pending_clean_path_count > 0 ? ` · ${environment.pending_clean_path_count} pending` : ""}
+                          </p>
+                        ) : null}
                         {environment.error_code ? <p className="mt-1 text-xs text-destructive">{environment.error_code.replaceAll("_", " ")}</p> : null}
                       </TableCell>
                       <TableCell className="text-muted-foreground">{formatTimestamp(environment.last_successful_sync_at)}</TableCell>
@@ -437,7 +476,7 @@ export function ConfigurationStatusView({
                               disabled={Boolean(busy)}
                               onClick={() => void mutate(
                                 `remove-consent:${environment.environment_id}`,
-                                () => removeConfigConsent(environment.environment_id, environment.assignment_version ?? 0),
+                                () => removeConfigConsent(environment.machine_id, environment.assignment_version ?? 0),
                                 `Configuration sync disabled on ${environment.display_name}.`,
                               )}
                             >
@@ -451,11 +490,21 @@ export function ConfigurationStatusView({
                               disabled={Boolean(busy)}
                               onClick={() => void mutate(
                                 `unassign:${environment.environment_id}`,
-                                () => unassignConfigRepository(environment.environment_id, environment.assignment_version ?? 0),
+                                () => unassignConfigRepository(environment.machine_id, environment.assignment_version ?? 0),
                                 `Configuration unassigned from ${environment.display_name}.`,
                               )}
                             >
                               Unassign
+                            </Button>
+                          ) : null}
+                          {assigned && environment.remote_revision ? (
+                            <Button size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => { setForce({ environment, action: "force_pull" }); setForceAccepted(false); }}>
+                              Force pull
+                            </Button>
+                          ) : null}
+                          {assigned && environment.remote_revision && environment.mode !== "pull_only" ? (
+                            <Button size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => { setForce({ environment, action: "force_push" }); setForceAccepted(false); }}>
+                              Force push
                             </Button>
                           ) : null}
                         </div>
@@ -470,10 +519,8 @@ export function ConfigurationStatusView({
       </Card>
 
       <div className="grid items-start gap-6 min-[960px]:grid-cols-2">
-        <ClassificationPanel items={classifierPending} />
         <IssueList title="Skipped paths" description="Oversized or unsafe paths stayed local." items={skipped} empty="No paths are being skipped." icon={InformationCircleIcon} />
-        <ConflictPanel items={conflicts} busy={Boolean(busy)} onResolve={resolveConflict} />
-        <SecurityPanel data={data} />
+        <ConflictPanel items={conflicts} busy={Boolean(busy)} onResolve={resolveConflict} onForce={(environment, conflict, action) => { setForce({ environment, conflict, action }); setForceAccepted(false); }} />
       </div>
 
       <ConsentDialog
@@ -484,6 +531,30 @@ export function ConfigurationStatusView({
         onClose={() => setWarning(undefined)}
         onConfirm={() => void acceptWarning()}
       />
+
+      <Dialog open={Boolean(force)} onOpenChange={(open) => { if (!open) { setForce(undefined); setForceAccepted(false); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Force {force?.action === "force_pull" ? "repository" : "machine"} version?</DialogTitle>
+            <DialogDescription>
+              {force?.conflict ? `${force.conflict.path} on ${force.environment.display_name}` : `All managed paths on ${force?.environment.display_name}`} will use the selected direction.
+            </DialogDescription>
+          </DialogHeader>
+          <Alert>
+            <HugeiconsIcon icon={Alert02Icon} />
+            <AlertTitle>{force?.conflict ? "Path-scoped operation" : "Configuration-scoped operation"}</AlertTitle>
+            <AlertDescription>The operation remains bounded by the manifest and creates recoverable history without rewriting Git history.</AlertDescription>
+          </Alert>
+          <label className="flex cursor-pointer items-start gap-3 border p-3 text-sm">
+            <input className="mt-0.5 size-4 accent-primary" type="checkbox" checked={forceAccepted} onChange={(event) => setForceAccepted(event.target.checked)} />
+            <span>I understand which side will replace the other and want to queue this force operation.</span>
+          </label>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setForce(undefined); setForceAccepted(false); }}>Cancel</Button>
+            <Button disabled={!forceAccepted || Boolean(busy)} onClick={() => void confirmForce()}>Queue force operation</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={Boolean(disconnecting)} onOpenChange={(open) => { if (!open) setDisconnecting(undefined); }}>
         <DialogContent>
@@ -536,15 +607,17 @@ function ConsentDialog({
           <div className="space-y-4 text-sm">
             <Alert>
               <HugeiconsIcon icon={Alert02Icon} />
-              <AlertTitle>Files may change automatically</AlertTitle>
-              <AlertDescription>{facts.file_categories.join(", ")} may be pulled, changed, and pushed while the helper is authorized.</AlertDescription>
+			  <AlertTitle>{facts.mode.replaceAll("_", " ")} synchronization</AlertTitle>
+			  <AlertDescription>{facts.manifest_scope}</AlertDescription>
             </Alert>
             <ul className="space-y-2 text-muted-foreground">
               <li>{facts.conflict_behavior}</li>
+			  <li>{facts.repository_visibility}</li>
+			  <li>{facts.history_retention}</li>
+			  <li>{facts.force_behavior}</li>
               <li>{facts.offline_behavior}</li>
               <li>{facts.disable_action}</li>
-              <li>{facts.classifier_metadata_disclosure}</li>
-              <li>{facts.recovery_consequence}</li>
+              <li>{facts.access_consequence}</li>
             </ul>
             <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3">
               <input
@@ -553,7 +626,7 @@ function ConsentDialog({
                 checked={accepted}
                 onChange={(event) => onAcceptedChange(event.target.checked)}
               />
-              <span>I understand that encrypted configuration will automatically pull from and push to this repository, and may change files in the named scope.</span>
+			  <span>I understand the selected synchronization direction, manifest scope, plaintext private-Git storage, retained Git history, and repository-access risk.</span>
             </label>
           </div>
         ) : null}
@@ -563,120 +636,6 @@ function ConsentDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function ClassificationPanel({ items }: { items: Array<ConfigSyncPathSummary & { environment: string }> }) {
-  const overrides = useConfigSyncOverrides();
-  const [busy, setBusy] = React.useState<string>();
-  const overrideMap = new Map((overrides.data ?? []).map((item) => [item.path, item.decision]));
-  const paths = Array.from(new Set([...items.map((item) => item.path), ...overrideMap.keys()])).sort();
-  async function change(path: string, value: string) {
-    setBusy(path);
-    try {
-      if (value) await putConfigSyncOverride(path, value as ConfigClassificationDecision);
-      else await deleteConfigSyncOverride(path);
-      overrides.refresh();
-      toast.success(value ? "Classification override saved." : "Classification override removed.");
-    } catch (error) {
-      toast.error("Classification could not be updated.", { description: error instanceof Error ? error.message : "Please try again." });
-    } finally {
-      setBusy(undefined);
-    }
-  }
-  return (
-    <Card>
-      <CardHeader className="border-b p-5 pb-4">
-        <CardTitle>Awaiting classification</CardTitle>
-        <CardDescription>Unknown paths remain local until policy, an override, or the classifier makes a safe decision.</CardDescription>
-      </CardHeader>
-      <CardContent className="px-5 pb-5 pt-4">
-        {paths.length === 0 ? (
-          <p className="flex items-center gap-2 text-xs text-muted-foreground"><HugeiconsIcon icon={InformationCircleIcon} className="size-4" />No paths await classification.</p>
-        ) : (
-          <ul className="space-y-3">
-            {paths.map((pathValue) => {
-              const pending = items.find((item) => item.path === pathValue);
-              return (
-                <li key={pathValue} className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0 text-xs">
-                    <p className="truncate font-mono" title={pathValue}>{pathValue}</p>
-                    <p className="text-muted-foreground">{pending ? `${pending.environment} · ${pending.reason.replaceAll("_", " ")}` : "Account override"}</p>
-                  </div>
-                  <NativeSelect
-                    size="sm"
-                    aria-label={`Classification for ${pathValue}`}
-                    value={overrideMap.get(pathValue) ?? ""}
-                    disabled={busy === pathValue}
-                    onChange={(event) => void change(pathValue, event.target.value)}
-                  >
-                    <NativeSelectOption value="">Automatic</NativeSelectOption>
-                    <NativeSelectOption value="portable">Portable</NativeSelectOption>
-                    <NativeSelectOption value="project_only">Environment only</NativeSelectOption>
-                    <NativeSelectOption value="exclude">Exclude</NativeSelectOption>
-                  </NativeSelect>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function SecurityPanel({ data }: { data: ConfigSyncStatus }) {
-  const [recovery, setRecovery] = React.useState<ConfigRecoveryKey>();
-  const keyVersion = Math.max(0, ...data.environments.map((item) => item.key_version ?? 0));
-  React.useEffect(() => {
-    const purpose = new URLSearchParams(window.location.search).get("reauthenticated");
-    if (purpose !== "config_recovery_export" && purpose !== "config_key_rotation") return;
-    window.history.replaceState({}, "", window.location.pathname);
-    const operation = purpose === "config_recovery_export"
-      ? exportConfigRecoveryKey().then(setRecovery)
-      : rotateConfigRecoveryKey().then((result) => toast.success(`Key rotation ${result.state.replaceAll("_", " ")}.`));
-    operation.catch((error) => toast.error("Security operation failed.", { description: error instanceof Error ? error.message : "Please try again." }));
-  }, []);
-  function download() {
-    if (!recovery) return;
-    const blob = new Blob([recovery.identity + "\n"], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `paperboat-recovery-key-v${recovery.key_version}.txt`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  }
-  return (
-    <Card>
-      <CardHeader className="border-b p-5 pb-4">
-        <CardTitle>Encryption and recovery</CardTitle>
-        <CardDescription>Plaintext stays on assigned environments. Git receives age-encrypted chezmoi data.</CardDescription>
-        <CardAction><HugeiconsIcon icon={Key01Icon} className="size-5 text-muted-foreground" /></CardAction>
-      </CardHeader>
-      <CardContent className="space-y-4 px-5 pb-5 pt-4">
-        <div className="grid grid-cols-2 gap-3"><Metric label="Key version" value={keyVersion ? String(keyVersion) : "Not reported"} mono /><Metric label="Policy revision" value={data.policy.revision} mono /></div>
-        <Alert><HugeiconsIcon icon={Key01Icon} /><AlertTitle>Store recovery identities offline</AlertTitle><AlertDescription>Anyone with an identity and repository access can decrypt portable configuration.</AlertDescription></Alert>
-        <div className="flex flex-wrap gap-2">
-          <Button nativeButton={false} render={<a href="/auth/reauth?purpose=config_recovery_export" />}><HugeiconsIcon icon={Download04Icon} />Export recovery key</Button>
-          <Button variant="outline" nativeButton={false} render={<a href="/auth/reauth?purpose=config_key_rotation" />}>Rotate key</Button>
-        </div>
-        <details className="text-xs">
-          <summary className="cursor-pointer font-medium">Mandatory exclusions ({data.policy.mandatory_exclusions.length})</summary>
-          <ul className="mt-2 max-h-40 space-y-1 overflow-auto font-mono text-muted-foreground">{data.policy.mandatory_exclusions.map((pattern) => <li key={pattern}>{pattern}</li>)}</ul>
-        </details>
-      </CardContent>
-      <Dialog open={Boolean(recovery)} onOpenChange={(open) => { if (!open) setRecovery(undefined); }}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Recovery identity</DialogTitle><DialogDescription>Store this in an encrypted offline location. Reauthentication is required to view it again.</DialogDescription></DialogHeader>
-          <pre className="max-h-48 overflow-auto rounded-md bg-muted p-3 font-mono text-xs whitespace-pre-wrap break-all">{recovery?.identity}</pre>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { if (recovery) void navigator.clipboard.writeText(recovery.identity); }}><HugeiconsIcon icon={Copy01Icon} />Copy</Button>
-            <Button onClick={download}><HugeiconsIcon icon={Download04Icon} />Download</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </Card>
   );
 }
 
@@ -714,6 +673,7 @@ function ConflictPanel({
   items,
   busy,
   onResolve,
+  onForce,
 }: {
   items: Array<ConfigSyncPathSummary & { environment: ConfigSyncEnvironmentStatus }>;
   busy: boolean;
@@ -722,12 +682,13 @@ function ConflictPanel({
     conflict: ConfigSyncPathSummary,
     action: ConfigConflictResolutionAction,
   ) => Promise<void>;
+  onForce: (environment: ConfigSyncEnvironmentStatus, conflict: ConfigSyncPathSummary, action: ConfigForceAction) => void;
 }) {
   return (
     <Card>
       <CardHeader className="border-b p-5 pb-4">
         <CardTitle>Conflicts</CardTitle>
-        <CardDescription>Both encrypted versions remain preserved until an explicit current-revision choice lands.</CardDescription>
+        <CardDescription>Both conflicting versions remain in private local state until an explicit current-revision choice lands.</CardDescription>
       </CardHeader>
       <CardContent className="px-5 pb-5 pt-4">
         {items.length === 0 ? (
@@ -743,7 +704,8 @@ function ConflictPanel({
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" disabled={busy || !item.revision} onClick={() => void onResolve(item.environment, item, "keep_local")}>Keep this machine</Button>
                   <Button size="sm" variant="outline" disabled={busy || !item.revision} onClick={() => void onResolve(item.environment, item, "keep_remote")}>Keep repository</Button>
-                  <Button size="sm" variant="ghost" disabled={busy || !item.revision} onClick={() => void onResolve(item.environment, item, "externally_resolved")}>Use external edit</Button>
+                  <Button size="sm" variant="outline" disabled={busy || !item.revision} onClick={() => onForce(item.environment, item, "force_pull")}>Force repository</Button>
+                  <Button size="sm" variant="outline" disabled={busy || !item.revision || item.environment.mode === "pull_only"} onClick={() => onForce(item.environment, item, "force_push")}>Force machine</Button>
                 </div>
               </li>
             ))}
@@ -754,7 +716,7 @@ function ConflictPanel({
   );
 }
 
-function flattenSummaries(environments: ConfigSyncEnvironmentStatus[], key: "skipped" | "conflicts" | "classifier_pending") {
+function flattenSummaries(environments: ConfigSyncEnvironmentStatus[], key: "skipped" | "conflicts") {
   return environments.flatMap((environment) => environment[key].map((item) => ({ ...item, environment: environment.display_name })));
 }
 
@@ -763,9 +725,9 @@ function Metric({ label, value, mono = false }: { label: string; value: string; 
 }
 
 export function ConfigurationError({ message }: { message: string }) {
-  return <><PageHeader eyebrow="Workspace" title="Configuration" description="Encrypted configuration synchronization by environment." /><Alert variant="error"><HugeiconsIcon icon={Alert02Icon} /><AlertTitle>Configuration status is unavailable</AlertTitle><AlertDescription>{message}</AlertDescription></Alert></>;
+	return <><PageHeader eyebrow="Workspace" title="Configuration" description="Configuration synchronization by machine." /><Alert variant="error"><HugeiconsIcon icon={Alert02Icon} /><AlertTitle>Configuration status is unavailable</AlertTitle><AlertDescription>{message}</AlertDescription></Alert></>;
 }
 
 export function ConfigurationLoading() {
-  return <div aria-busy="true" aria-label="Loading configuration synchronization status"><PageHeader eyebrow="Workspace" title="Configuration" description="Encrypted configuration synchronization by environment." /><div className="mt-6 grid gap-4 lg:grid-cols-2"><Skeleton className="h-48" /><Skeleton className="h-48" /></div><Skeleton className="mt-6 h-72" /></div>;
+	return <div aria-busy="true" aria-label="Loading configuration synchronization status"><PageHeader eyebrow="Workspace" title="Configuration" description="Configuration synchronization by machine." /><div className="mt-6 grid gap-4 lg:grid-cols-2"><Skeleton className="h-48" /><Skeleton className="h-48" /></div><Skeleton className="mt-6 h-72" /></div>;
 }
