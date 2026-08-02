@@ -34,6 +34,7 @@ const warning = {
 let staleConsentMutation = false;
 let byod;
 let hosted;
+let previews;
 
 function reset() {
   staleConsentMutation = false;
@@ -83,6 +84,38 @@ function reset() {
     recovery_actions: ["resolve_conflict"],
     sync_revision: 8,
   };
+  previews = [
+    {
+      id: "prv_served",
+      environment_id: "env_byod",
+      environment_name: "Personal Linux",
+      environment_kind: "machine",
+      project_id: "project_local",
+      resource_id: "mch_byod",
+      user_id: "usr_browser_test",
+      owner_email: "sailor@example.test",
+      logical_name: "docs",
+      url: "https://docs.preview.example.test",
+      state: "ready",
+      source_kind: "directory",
+      owner_mode: "detached",
+    },
+    {
+      id: "prv_app",
+      environment_id: "env_hosted",
+      environment_name: "Hosted development",
+      environment_kind: "hosted",
+      project_id: "project_hosted",
+      resource_id: "machine_hosted",
+      user_id: "usr_browser_test",
+      owner_email: "sailor@example.test",
+      logical_name: "web",
+      url: "https://web.preview.example.test",
+      state: "ready",
+      source_kind: "application",
+      owner_mode: "runtime",
+    },
+  ];
 }
 
 reset();
@@ -135,6 +168,14 @@ const server = createServer(async (request, response) => {
     return success(response, { trial_eligible: false });
   }
   if (path === "/v1/billing/plan-products") return success(response, []);
+  if (path === "/v1/previews" && request.method === "GET") return success(response, previews);
+  if (path.startsWith("/v1/previews/") && request.method === "DELETE") {
+    const id = decodeURIComponent(path.slice("/v1/previews/".length));
+    const preview = previews.find((item) => item.id === id);
+    if (!preview) return failure(response, 404, "not_found_or_forbidden", "Preview not found.");
+    previews = previews.filter((item) => item.id !== id);
+    return success(response, { ...preview, state: "removed" });
+  }
   if (path === "/v1/config-repositories" && request.method === "GET") {
     return success(response, { items: [repository] });
   }

@@ -262,11 +262,18 @@ export default function MachinesPage() {
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <p className="truncate text-muted-foreground" title={machine.workspace_root}>{machine.workspace_root}</p>
-                <p className="text-xs text-muted-foreground">Seat {machine.seat_state}</p>
-                <AvailabilityControl machine={machine} busy={busy === machine.id + "availability"} onChange={(mode) => void updateAvailability(machine, mode)} onRetry={() => void refresh()} />
+                <div className="flex flex-wrap gap-1.5" aria-label={`${machine.display_name} capabilities`}>
+                  <Badge variant="outline">{machine.setup_mode}</Badge>
+                  {machine.capabilities.file_receive.configured ? <Badge variant={machine.capabilities.file_receive.observed ? "success" : "outline"}>Files</Badge> : null}
+                  {machine.capabilities.preview_launch.configured ? <Badge variant={machine.capabilities.preview_launch.observed ? "success" : "outline"}>Previews</Badge> : null}
+                  {machine.capabilities.terminal_host.configured ? <Badge variant={machine.capabilities.terminal_host.observed ? "success" : "outline"}>Terminal</Badge> : null}
+                  {machine.capabilities.codex_host.configured ? <Badge variant={machine.capabilities.codex_host.observed ? "success" : "outline"}>Codex</Badge> : null}
+                </div>
+                {machine.setup_mode === "host" ? <p className="text-xs text-muted-foreground">Seat {machine.seat_state}</p> : null}
+                {machine.setup_mode === "host" ? <AvailabilityControl machine={machine} busy={busy === machine.id + "availability"} onChange={(mode) => void updateAvailability(machine, mode)} onRetry={() => void refresh()} /> : null}
               </CardContent>
               <CardFooter className="gap-2">
-                <AlertDialog>
+                {machine.setup_mode === "host" ? <AlertDialog>
                   <AlertDialogTrigger render={<Button size="sm" variant="outline" disabled={busy === machine.id + "disconnect"} />}>
                     <HugeiconsIcon icon={LinkSquare02Icon} />Disconnect
                   </AlertDialogTrigger>
@@ -282,7 +289,7 @@ export default function MachinesPage() {
                       <AlertDialogAction variant="destructive" onClick={() => void act(machine.id, "disconnect")}>Disconnect machine</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
-                </AlertDialog>
+                </AlertDialog> : null}
                 <AlertDialog>
                   <AlertDialogTrigger render={<Button size="icon-sm" variant="ghost" aria-label={`Delete ${machine.display_name}`} disabled={busy === machine.id + "delete"} />}>
                     <HugeiconsIcon icon={Delete02Icon} />

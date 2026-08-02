@@ -44,9 +44,10 @@ export default function PreviewsPage() {
   }, [refresh]);
 
   async function revoke(item: Preview) {
+    const serving = item.source_kind !== "application";
     setBusy(item.id);
-    try { await revokePreview(item.id); toast.success("Preview revoked."); await refresh(); }
-    catch (value) { toast.error(value instanceof ApiError ? value.message : "Unable to revoke preview."); }
+    try { await revokePreview(item.id); toast.success(serving ? "Serving stopped." : "Preview revoked."); await refresh(); }
+    catch (value) { toast.error(value instanceof ApiError ? value.message : serving ? "Unable to stop serving." : "Unable to revoke preview."); }
     finally { setBusy(undefined); }
   }
 
@@ -55,10 +56,13 @@ export default function PreviewsPage() {
     {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
     <Card><CardContent className="p-0">
       {loading ? <div className="space-y-3 p-6">{[0, 1, 2].map((value) => <Skeleton key={value} className="h-14 w-full" />)}</div> : items.length === 0 ? <p className="p-6 text-sm text-muted-foreground">No active previews.</p> : <div className="divide-y">
-        {items.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-4 p-4">
-          <div className="min-w-0"><div className="flex items-center gap-2"><p className="font-medium">{item.logical_name}</p><Badge variant="outline">{item.state}</Badge></div><p className="text-sm text-muted-foreground">{item.environment_name} · {item.environment_kind} · {item.owner_email}</p><p className="text-xs text-muted-foreground">Project {item.project_id ?? item.environment_id}{item.resource_id ? ` · Resource ${item.resource_id}` : ""} · User {item.user_id ?? item.owner_email}</p></div>
-          <div className="flex items-center gap-2"><a className="inline-flex items-center gap-1 text-sm underline" href={item.url} target="_blank" rel="noreferrer">Open <HugeiconsIcon icon={LinkSquare02Icon} /></a><AlertDialog><AlertDialogTrigger render={<Button variant="destructive" size="sm" disabled={busy === item.id} />}><HugeiconsIcon icon={Delete02Icon} />Revoke</AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Revoke {item.logical_name}?</AlertDialogTitle><AlertDialogDescription>This immediately disables the public preview URL.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => void revoke(item)}>Revoke preview</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></div>
-        </div>)}
+        {items.map((item) => {
+          const serving = item.source_kind !== "application";
+          const action = serving ? "Stop serving" : "Revoke";
+          return <div key={item.id} className="flex flex-wrap items-center justify-between gap-4 p-4">
+          <div className="min-w-0"><div className="flex items-center gap-2"><p className="font-medium">{item.logical_name}</p><Badge variant="outline">{item.state}</Badge>{serving ? <Badge variant="outline">{item.source_kind}</Badge> : null}</div><p className="text-sm text-muted-foreground">{item.environment_name} · {item.environment_kind} · {item.owner_email}</p><p className="text-xs text-muted-foreground">Project {item.project_id ?? item.environment_id}{item.resource_id ? ` · Resource ${item.resource_id}` : ""} · User {item.user_id ?? item.owner_email}</p></div>
+          <div className="flex items-center gap-2"><a className="inline-flex items-center gap-1 text-sm underline" href={item.url} target="_blank" rel="noreferrer">Open <HugeiconsIcon icon={LinkSquare02Icon} /></a><AlertDialog><AlertDialogTrigger render={<Button variant="destructive" size="sm" disabled={busy === item.id} />}><HugeiconsIcon icon={Delete02Icon} />{action}</AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>{action} {item.logical_name}?</AlertDialogTitle><AlertDialogDescription>{serving ? "This stops the local static server and disables its public URL." : "This immediately disables the public preview URL."}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => void revoke(item)}>{action}</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></div>
+        </div>})}
       </div>}
     </CardContent></Card>
   </div>;

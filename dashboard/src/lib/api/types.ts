@@ -25,12 +25,28 @@ export interface Machine {
   online: boolean;
   runtime_versions: Record<string, string>;
   setup_roles: Array<"interactive" | "host">;
+  setup_mode: "receive" | "session" | "host";
+  capabilities: MachineCapabilities;
   machine_kind: "personal" | "hosted";
   public_identity_key: string;
   installation_generation: number;
   enrolled_at?: string;
   last_seen_at?: string;
 	availability: AvailabilityPolicy;
+}
+
+export interface MachineCapabilityAvailability {
+  configured: boolean;
+  observed: boolean;
+}
+
+export interface MachineCapabilities {
+  file_receive: MachineCapabilityAvailability;
+  preview_launch: MachineCapabilityAvailability;
+  terminal_host: MachineCapabilityAvailability;
+  codex_host: MachineCapabilityAvailability;
+  session_host: MachineCapabilityAvailability;
+  keep_awake: MachineCapabilityAvailability;
 }
 
 export type AvailabilityMode = "allow_sleep" | "keep_awake";
@@ -67,6 +83,8 @@ export interface Preview {
   environment_kind: "hosted" | "byod" | string;
   owner_email: string;
   expires_at?: string;
+  source_kind: "application" | "file" | "directory";
+  owner_mode: "runtime" | "foreground" | "detached";
 }
 
 export interface MachineOverview {
