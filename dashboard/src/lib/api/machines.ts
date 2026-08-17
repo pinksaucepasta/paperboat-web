@@ -1,11 +1,26 @@
 import { pbFetch } from "./client";
-import type { AvailabilityMode, AvailabilityPolicy, Machine, MachineEnrollment, MachineEnrollmentStart, MachineListResponse, MachineOverview } from "./types";
+import type { AvailabilityMode, AvailabilityPolicy, FleetUpdateSummary, Machine, MachineEnrollment, MachineEnrollmentStart, MachineListResponse, MachineOverview, MaintenanceApproval, UpdateObservation } from "./types";
 
 export async function listMachines(): Promise<Machine[]> {
   return (await pbFetch<MachineListResponse>("/v1/machines")).items;
 }
 export function getMachineOverview(): Promise<MachineOverview> {
   return pbFetch("/v1/machines/overview");
+}
+export function getFleetUpdateSummary(): Promise<FleetUpdateSummary> {
+  return pbFetch("/v1/machines/update-summary");
+}
+export function getMachineUpdateStatus(id: string): Promise<UpdateObservation> {
+  return pbFetch(`/v1/machines/${encodeURIComponent(id)}/update-status`);
+}
+export async function listMaintenanceApprovals(id: string): Promise<MaintenanceApproval[]> {
+  return (await pbFetch<{ approvals: MaintenanceApproval[] }>(`/v1/machines/${encodeURIComponent(id)}/maintenance-approvals`)).approvals;
+}
+export function requestMaintenanceApproval(id: string, input: { action: "update" | "restart" | "migration"; target_version: string; reason?: string; expires_in_seconds?: number }): Promise<MaintenanceApproval> {
+  return pbFetch(`/v1/machines/${encodeURIComponent(id)}/maintenance-approvals`, { method: "POST", body: input });
+}
+export function decideMaintenanceApproval(id: string, approvalID: string, decision: "approved" | "rejected"): Promise<MaintenanceApproval> {
+  return pbFetch(`/v1/machines/${encodeURIComponent(id)}/maintenance-approvals/${encodeURIComponent(approvalID)}/${decision}`, { method: "POST" });
 }
 export function approveMachine(userCode: string): Promise<Machine> {
   return pbFetch(`/v1/machines/pairings/${encodeURIComponent(userCode)}/approve`, { method: "POST" });

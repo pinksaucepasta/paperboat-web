@@ -68,6 +68,50 @@ export interface AvailabilityPolicy {
 
 export interface MachineListResponse { items: Machine[] }
 
+export type MachineUpdateState = "not_reporting" | "idle" | "checking" | "downloading" | "staged" | "activating" | "deferred" | "healthy" | "failed" | "rolled_back";
+
+export interface UpdateObservation {
+  schema: "paperboat.update-observation/v1";
+  state: Exclude<MachineUpdateState, "not_reporting">;
+  current_version: string;
+  target_version?: string;
+  channel: string;
+  operation_id: string;
+  installation_generation: number;
+  worker_generation: number;
+  rollback_count: number;
+  error_code?: string;
+  observed_at: string;
+}
+
+export interface FleetUpdateMachine {
+  machine_id: string;
+  display_name: string;
+  online: boolean;
+  state: MachineUpdateState;
+  observation?: UpdateObservation;
+}
+
+export interface FleetUpdateSummary {
+  items: FleetUpdateMachine[];
+  counts: Partial<Record<MachineUpdateState, number>>;
+}
+
+export interface MaintenanceApproval {
+  schema: "paperboat.maintenance-approval/v1";
+  id: string;
+  machine_id: string;
+  action: "update" | "restart" | "migration";
+  target_version: string;
+  reason?: string;
+  status: "pending" | "approved" | "rejected" | "expired" | "consumed";
+  expires_at: string;
+  decided_at?: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Preview {
   id: string;
   environment_id: string;

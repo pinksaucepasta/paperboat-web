@@ -37,9 +37,12 @@ import {
   deleteMachine,
   denyMachine,
   disconnectMachine,
+  decideMaintenanceApproval,
+  getFleetUpdateSummary,
   getMachineEnrollment,
   getMachineOverview,
   listMachines,
+  listMaintenanceApprovals,
   retryMachineEnrollment,
   setMachineAvailability,
   startMachineEnrollment,
@@ -50,6 +53,8 @@ import type {
   MachineEnrollmentStart,
   MachineEnrollmentState,
   MachineOverview,
+  FleetUpdateSummary,
+  MaintenanceApproval,
   AvailabilityMode,
 } from "@/lib/api/types";
 import { Switch } from "@/components/ui/switch";
@@ -67,6 +72,9 @@ const POLLED_STATES = new Set<MachineEnrollmentState>([
 export default function MachinesPage() {
   const [items, setItems] = React.useState<Machine[]>([]);
   const [overview, setOverview] = React.useState<MachineOverview>();
+	const [updates, setUpdates] = React.useState<FleetUpdateSummary>();
+	const [maintenance, setMaintenance] = React.useState<Record<string, MaintenanceApproval[]>>({});
+	const [updateError, setUpdateError] = React.useState<string>();
   const [enrollment, setEnrollment] = React.useState<MachineEnrollment | MachineEnrollmentStart>();
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string>();
@@ -80,8 +88,20 @@ export default function MachinesPage() {
       const [machines, usage] = await Promise.all([listMachines(), getMachineOverview()]);
       setItems(machines);
       setOverview(usage);
+		try {
+			const updateSummary = await getFleetUpdateSummary();
+			setUpdates(updateSummary);
+			setUpdateError(undefined);
+			const awaitingApproval = updateSummary.items.filter((item) => item.state === "deferred").map((item) => item.machine_id);
+			const pendingApprovals = await Promise.all(awaitingApproval.map(async (machineID) => [machineID, await listMaintenanceApprovals(machineID)] as const));
+			setMaintenance(Object.fromEntries(pendingApprovals));
+		} catch (error) {
+			setUpdates(undefined);
+			setMaintenance({});
+			setUpdateError(errorMessage(error, "Update status is unavailable."));
+		}
     } catch (error) {
-      setLoadError(errorMessage(error, "Unable to load machines."));
+		setLoadError(errorMessage(error, "Unable to load machines."));
     } finally {
       setLoading(false);
     }
@@ -202,6 +222,19 @@ export default function MachinesPage() {
     }
   }
 
+	async function decideMaintenance(machineID: string, approval: MaintenanceApproval, decision: "approved" | "rejected") {
+		setBusy(`${machineID}:${approval.id}:${decision}`);
+		try {
+			const updated = await decideMaintenanceApproval(machineID, approval.id, decision);
+			setMaintenance((current) => ({ ...current, [machineID]: (current[machineID] ?? []).map((item) => item.id === updated.id ? updated : item) }));
+			toast.success(decision === "approved" ? "Maintenance approved." : "Maintenance declined.");
+		} catch (error) {
+			toast.error(`Couldn't ${decision === "approved" ? "approve" : "decline"} maintenance.`, { description: errorMessage(error, "Refresh the machine state and try again.") });
+		} finally {
+			setBusy(undefined);
+		}
+	}
+
   const includedPercent = overview?.included_bytes
     ? Math.min(100, Math.round((overview.consumed_included_bytes / overview.included_bytes) * 100))
     : 0;
@@ -244,6 +277,9 @@ export default function MachinesPage() {
         </section>
       ) : null}
 
+		{!loading && !loadError && updates ? <UpdateFleetSummary summary={updates} /> : null}
+		{updateError ? <section role="status" className="flex items-center justify-between gap-3 border-y py-3 text-sm"><p className="text-muted-foreground">{updateError}</p><Button size="sm" variant="outline" onClick={() => void refresh()}><HugeiconsIcon icon={RefreshIcon} />Retry</Button></section> : null}
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <section aria-label="Enrolled machines" className="grid content-start gap-4 md:grid-cols-2">
           {!loading && !loadError && items.length === 0 ? (
@@ -271,6 +307,7 @@ export default function MachinesPage() {
                 </div>
                 {machine.setup_mode === "host" ? <p className="text-xs text-muted-foreground">Seat {machine.seat_state}</p> : null}
                 {machine.setup_mode === "host" ? <AvailabilityControl machine={machine} busy={busy === machine.id + "availability"} onChange={(mode) => void updateAvailability(machine, mode)} onRetry={() => void refresh()} /> : null}
+						<MachineUpdateControl machine={machine} update={updates?.items.find((item) => item.machine_id === machine.id)} approvals={maintenance[machine.id] ?? []} busy={busy} onDecision={(approval, decision) => void decideMaintenance(machine.id, approval, decision)} />
               </CardContent>
               <CardFooter className="gap-2">
                 {machine.setup_mode === "host" ? <AlertDialog>
@@ -335,6 +372,28 @@ export default function MachinesPage() {
       </div>
     </>
   );
+}
+
+function UpdateFleetSummary({ summary }: { summary: FleetUpdateSummary }) {
+	const reporting = summary.items.length - (summary.counts.not_reporting ?? 0);
+	const attention = (summary.counts.failed ?? 0) + (summary.counts.rolled_back ?? 0) + (summary.counts.deferred ?? 0);
+	return <section aria-label="Paperboat updates" className="grid overflow-hidden rounded-lg border sm:grid-cols-3 sm:divide-x">
+		<Metric label="Reporting" value={`${reporting} / ${summary.items.length}`} detail="machines have update status" />
+		<Metric label="Needs attention" value={String(attention)} detail={attention ? "Review affected machines" : "No action required"} />
+		<Metric label="Active updates" value={String((summary.counts.checking ?? 0) + (summary.counts.downloading ?? 0) + (summary.counts.staged ?? 0) + (summary.counts.activating ?? 0))} detail="checking, staging, or activating" />
+	</section>;
+}
+
+function MachineUpdateControl({ machine, update, approvals, busy, onDecision }: { machine: Machine; update?: FleetUpdateSummary["items"][number]; approvals: MaintenanceApproval[]; busy?: string; onDecision: (approval: MaintenanceApproval, decision: "approved" | "rejected") => void }) {
+	const pending = approvals.find((approval) => approval.status === "pending");
+	const state = update?.state ?? "not_reporting";
+	const variant = state === "healthy" || state === "idle" ? "success" : state === "failed" || state === "rolled_back" ? "error" : state === "deferred" ? "warning" : "outline";
+	return <div className="mt-4 space-y-2 border-t pt-4">
+		<div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><p className="font-medium">Paperboat update</p><Badge variant={variant}>{stateLabel(state)}</Badge></div>{update?.observation?.target_version ? <span className="font-mono text-xs text-muted-foreground">{update.observation.current_version} → {update.observation.target_version}</span> : update?.observation ? <span className="font-mono text-xs text-muted-foreground">{update.observation.current_version}</span> : null}</div>
+		{state === "not_reporting" ? <p className="text-xs text-muted-foreground">This machine has not reported update status yet.</p> : null}
+		{state === "failed" || state === "rolled_back" ? <p className="text-xs text-destructive">The last update did not complete{update?.observation?.error_code ? ` (${update.observation.error_code})` : ""}. The machine kept its previous verified version.</p> : null}
+		{pending ? <div className="flex flex-col gap-2 border-l-2 border-amber-500 pl-3 text-sm"><p>Maintenance is required to install {pending.target_version}. This can interrupt active work.</p><p className="text-xs text-muted-foreground">Requested action: {pending.action}. Approval expires {formatTimestamp(pending.expires_at)}.</p><div className="flex gap-2"><AlertDialog><AlertDialogTrigger render={<Button size="sm" disabled={busy === `${machine.id}:${pending.id}:approved`} />}>Approve maintenance</AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Approve maintenance for {machine.display_name}?</AlertDialogTitle><AlertDialogDescription>Paperboat will allow the signed {pending.target_version} maintenance update during the next 15-minute window. Active work may be interrupted.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => onDecision(pending, "approved")}>Approve maintenance</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog><Button size="sm" variant="outline" disabled={busy === `${machine.id}:${pending.id}:rejected`} onClick={() => onDecision(pending, "rejected")}>Decline</Button></div></div> : state === "deferred" ? <p className="text-xs text-muted-foreground">This update is waiting for a maintenance approval from the machine.</p> : null}
+	</div>;
 }
 
 function AvailabilityControl({ machine, busy, onChange, onRetry }: { machine: Machine; busy: boolean; onChange: (mode: AvailabilityMode) => void; onRetry: () => void }) {
