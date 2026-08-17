@@ -38,9 +38,9 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   const url = new URL(req.url);
-  const email = url.searchParams.get("email") ?? "demo@paperboat.dev";
-  const name = url.searchParams.get("name") ?? "Demo User";
-  const subject = url.searchParams.get("subject") ?? "sub_demo";
+  const email = url.searchParams.get("email") ?? "admin@pprbt.dev";
+  const name = url.searchParams.get("name") ?? "Admin";
+  const subject = url.searchParams.get("subject") ?? "sub_admin";
   const code = `${subject}:${email}:${name}`;
 
   const base = serverBaseUrl();
