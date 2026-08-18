@@ -13,6 +13,17 @@ export interface Me {
   workos_subject: string;
 }
 
+export type ReleaseAuthorityAction = "promote" | "pause" | "quarantine" | "revoke";
+export interface ReleaseAuthorityRequest {
+  id: string; action: ReleaseAuthorityAction; release_id: string; version: string;
+  platform: "darwin" | "linux" | "windows"; architecture: "amd64" | "arm64";
+  policy_revision: number; rollout_percentage: number; status: "pending" | "fulfilled" | "cancelled";
+  created_at: string; fulfilled_at?: string;
+}
+export interface ReleaseAuthorityBundle extends ReleaseAuthorityRequest {
+  tuf_index_target: string; tuf_index_sha256: string; issued_at: string; expires_at: string;
+}
+
 export interface Machine {
   id: string;
   environment_id: string;
