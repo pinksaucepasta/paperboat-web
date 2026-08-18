@@ -19,7 +19,7 @@ export async function GET(req: Request): Promise<Response> {
     return new Response("Auth is not configured.", { status: 500 });
   }
 
-  const stateRes = await fetch(serverBaseUrl() + "/api/auth/workos/state", {
+  const stateRes = await fetch(serverBaseUrl() + "/v1/auth/workos/state", {
     cache: "no-store",
   });
   if (!stateRes.ok) {

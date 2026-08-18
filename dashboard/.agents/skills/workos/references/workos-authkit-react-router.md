@@ -9,7 +9,7 @@
 4. Verify with checklist below
 ```
 
-## Phase 1: Fetch SDK Documentation (BLOCKING)
+## Step 1: Fetch SDK Documentation (BLOCKING)
 
 **STOP - Do not write any code until this completes.**
 
@@ -17,7 +17,7 @@ WebFetch: `https://raw.githubusercontent.com/workos/authkit-react-router/main/RE
 
 The README is the source of truth. If this skill conflicts with README, **follow the README**.
 
-## Phase 2: Detect Router Mode
+## Step 2: Detect Router Mode
 
 | Mode           | Detection Signal                | Key Indicator             |
 | -------------- | ------------------------------- | ------------------------- |
@@ -33,7 +33,7 @@ The README is the source of truth. If this skill conflicts with README, **follow
 3. Check package.json version (v6 vs v7)
 4. Default to Declarative if v7 with `<BrowserRouter>`
 
-## Phase 3: Follow README
+## Step 3: Follow README
 
 Based on detected mode, apply the corresponding README section. The README contains current API signatures and code patterns.
 

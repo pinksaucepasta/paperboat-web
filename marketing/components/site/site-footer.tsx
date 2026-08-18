@@ -30,7 +30,7 @@ const COLUMNS = [
       { label: "Cloud Agents", href: "#cloud-agents" },
       { label: "Remote Agents", href: "#remote-agents" },
       { label: "Hosted Hermes", href: "#hermes" },
-      { label: "AgenTunnel", href: "#agentunnel" },
+      { label: "Secure access", href: "#environment-access" },
     ],
   },
   {

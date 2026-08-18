@@ -28,7 +28,7 @@ type Line = {
 
 const SCRIPT: Line[] = [
   { text: "$ paperboat connect my-app", delay: 300, typed: true, tone: "cmd" },
-  { text: "  tunnel established · agentunnel", delay: 500, tone: "dim" },
+  { text: "  environment route ready", delay: 500, tone: "dim" },
   { text: "  machine was idle, resuming…", delay: 350, tone: "dim" },
   { text: "  ✓ attached to my-app", delay: 700, tone: "ok" },
   { text: "$ claude", delay: 800, typed: true, tone: "cmd" },

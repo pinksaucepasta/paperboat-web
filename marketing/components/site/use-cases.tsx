@@ -23,12 +23,9 @@ import { SectionIntro } from "@/components/site/section-intro";
 // ------------------------------------------------------------- panel visuals
 
 function OvernightViz() {
-  // A night as a causal sequence: the agent works, the task finishes, the
-  // machine sits idle, and once it crosses the (user-set) idle timeout it stops
-  // itself — a fallback, since you can also end the session by hand. The idle
-  // timeout is a per-project setting (USERSTORY: not hardcoded), shown here at
-  // an example 5 min in a config-style chip.
-  const rail = ["work", "idle", "sleep"] as const; // segment between each row
+  // A night as a causal sequence: the agent keeps working remotely until the
+  // user returns and deliberately stops the machine.
+  const rail = ["work", "work", "sleep"] as const; // segment between each row
   const rows = [
     {
       time: "18:40",
@@ -37,20 +34,19 @@ function OvernightViz() {
     },
     {
       time: "02:10",
-      label: "Task done",
-      note: "nothing left to run, the machine falls idle",
-    },
-    {
-      time: "+ idle",
-      label: "Machine sleeps itself",
-      note: "no activity from you or the agent, so it stops and metering ends",
-      config: true,
-      sleep: true,
+      label: "Task complete",
+      note: "the result is ready when you return",
     },
     {
       time: "07:15",
-      label: "You're back",
-      note: "reconnect and it resumes where it left off",
+      label: "You stop the machine",
+      note: "metering ends and the project volume remains intact",
+      sleep: true,
+    },
+    {
+      time: "later",
+      label: "Resume when needed",
+      note: "the machine starts with the same project state",
     },
   ];
 
@@ -80,8 +76,6 @@ function OvernightViz() {
                 {!last &&
                   (seg === "work" ? (
                     <span className="mt-1 w-0.5 flex-1 rounded-full bg-primary/70" />
-                  ) : seg === "idle" ? (
-                    <span className="mt-1 flex-1 border-l-2 border-dashed border-border" />
                   ) : (
                     <span className="mt-1 w-0.5 flex-1 rounded-full bg-border" />
                   ))}
@@ -91,15 +85,6 @@ function OvernightViz() {
               <div className={last ? "" : "pb-6"}>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
                   <span className="text-nav text-foreground">{r.label}</span>
-                  {r.config && (
-                    <span className="text-caption inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2 py-0.5 font-mono text-muted-foreground">
-                      idle timeout
-                      <span className="text-foreground">5 min</span>
-                      <svg viewBox="0 0 10 10" className="size-2.5 text-muted-foreground" aria-hidden="true">
-                        <path d="M2 3.5 L5 6.5 L8 3.5" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </span>
-                  )}
                 </div>
                 <p className="text-body-sm mt-1 text-pretty text-muted-foreground">{r.note}</p>
               </div>
@@ -108,10 +93,10 @@ function OvernightViz() {
         })}
       </ol>
 
-      {/* the fallback is auto — but you can always end it yourself */}
+      {/* Runtime lifecycle remains under explicit user control. */}
       <div className="flex items-center gap-3 rounded-lg border border-dashed border-border px-4 py-3">
         <span className="text-body-sm text-pretty text-muted-foreground">
-          Don't want to wait for the timeout? End the session yourself.
+          Stop a finished machine from the dashboard or CLI.
         </span>
         <span className="text-caption ml-auto flex h-7 shrink-0 items-center rounded-md border border-border px-3 font-medium text-foreground">
           End session
@@ -565,7 +550,6 @@ function useReviewLoop() {
 }
 
 function PreviewViz() {
-  // The agentunnel review extension (internal/extensions/builtin/reviewcapture):
   // a floating pill on any preview, a pin dropped on the page, a note popover to
   // add a comment, and a submit that hands the review back — shown as a loop.
   const phase = useReviewLoop();

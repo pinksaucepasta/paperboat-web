@@ -6,7 +6,7 @@ import {
 } from "@/lib/api/server";
 
 /**
- * Log out: call the server's `/api/auth/logout` (CSRF-protected) forwarding the
+ * Log out: call the server's `/v1/auth/logout` (CSRF-protected) forwarding the
  * session + CSRF cookies, relay the server's cookie-clearing `Set-Cookie`
  * headers, and redirect to /login.
  */
@@ -19,7 +19,7 @@ export async function POST(req: Request): Promise<Response> {
 
   let serverRes: Response | null = null;
   try {
-    serverRes = await fetch(serverBaseUrl() + "/api/auth/logout", {
+    serverRes = await fetch(serverBaseUrl() + "/v1/auth/logout", {
       method: "POST",
       headers: {
         cookie: cookieHeader,

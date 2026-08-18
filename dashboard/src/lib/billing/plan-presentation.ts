@@ -1,6 +1,6 @@
 /**
  * Parses the `presentation` block of a billing plan product's metadata, as
- * returned by `/api/billing/plan-products`. The values are authored in the
+ * returned by `/v1/billing/plan-products`. The values are authored in the
  * paperboat-server catalog seed (plan metadata) — the dashboard only renders
  * them. Plans without a presentation block fall back to data-derived content.
  */
@@ -30,7 +30,7 @@ export type PlanFeatureIcon =
   | "storage"
   | "projects"
   | "regions"
-  | "agentunnel"
+  | "environment_access"
   | "support"
   | "feature";
 
@@ -44,7 +44,7 @@ const FEATURE_ICONS = new Set<PlanFeatureIcon>([
   "storage",
   "projects",
   "regions",
-  "agentunnel",
+  "environment_access",
   "support",
   "feature",
 ]);

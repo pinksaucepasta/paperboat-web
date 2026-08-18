@@ -23,6 +23,47 @@ export const SESSION_COOKIE = "paperboat_session";
 export const CSRF_COOKIE = "paperboat_csrf";
 export const OAUTH_STATE_COOKIE = "paperboat_oauth_state";
 
+const SAFE_READ_ATTEMPTS = 3;
+const SAFE_READ_ATTEMPT_TIMEOUT_MS = 5_000;
+
+/**
+ * Fetch the control plane. Safe reads retry bounded network failures because no
+ * mutation can become uncertain. Mutations are attempted exactly once.
+ */
+export async function fetchPaperboatServer(
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1],
+): Promise<Response> {
+  const method = (
+    input instanceof Request ? input.method : (init?.method ?? "GET")
+  ).toUpperCase();
+  const safeRead = method === "GET" || method === "HEAD";
+  const attempts = safeRead ? SAFE_READ_ATTEMPTS : 1;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const attemptSignal = safeRead
+      ? AbortSignal.timeout(SAFE_READ_ATTEMPT_TIMEOUT_MS)
+      : undefined;
+    try {
+      if (input instanceof Request) {
+        const request = input.clone();
+        return await fetch(
+          attemptSignal ? new Request(request, { signal: attemptSignal }) : request,
+        );
+      }
+      return await fetch(input, {
+        ...init,
+        signal: attemptSignal ?? init?.signal,
+      });
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+}
+
 /** Request/response headers we forward through the proxy (allowlist, lowercased). */
 export const FORWARDED_REQUEST_HEADERS = [
   "content-type",
@@ -35,7 +76,7 @@ export const FORWARDED_REQUEST_HEADERS = [
 
 /**
  * Build the outbound request to the server for a given proxied path.
- * `path` already includes the leading `/api/...` segment.
+ * `path` already includes the leading `/v1/...` segment.
  */
 export function buildServerRequest(
   path: string,
@@ -76,7 +117,16 @@ export function relayResponse(serverRes: Response, body: BodyInit | null): Respo
   const res = new Response(body, { status: serverRes.status, headers });
   // `getSetCookie` returns each Set-Cookie header separately (Node/undici).
   for (const cookie of serverRes.headers.getSetCookie()) {
-    res.headers.append("set-cookie", cookie);
+    // The production API correctly emits Secure cookies. A local HTTP
+    // dashboard can only persist them during the explicitly enabled dev-login
+    // workflow, so remove Secure in development only. Production and preview
+    // builds always relay the cookie unchanged.
+    const relayedCookie =
+      process.env.NODE_ENV === "development" &&
+      process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN === "true"
+        ? cookie.replace(/;\s*Secure(?=;|$)/gi, "")
+        : cookie;
+    res.headers.append("set-cookie", relayedCookie);
   }
   return res;
 }

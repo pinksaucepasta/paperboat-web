@@ -26,7 +26,7 @@ const config: ChartConfig = {
 
 /**
  * Sample series — the control plane currently exposes only point-in-time usage
- * (`/api/billing/usage`, `/api/dashboard/usage-summary`), not a metering
+ * (`/v1/billing/usage`, `/v1/usage-summary`), not a metering
  * history. Once paperboat-server ships a usage-history endpoint, swap `rowsFor`
  * for that series; the chart is otherwise wired and ready.
  */

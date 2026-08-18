@@ -13,7 +13,7 @@ export interface Me {
   workos_subject: string;
 }
 
-export interface ConnectedMachine {
+export interface Machine {
   id: string;
   environment_id: string;
   display_name: string;
@@ -24,13 +24,70 @@ export interface ConnectedMachine {
   seat_state: "reserved" | "occupied" | "released";
   online: boolean;
   runtime_versions: Record<string, string>;
+  setup_roles: Array<"interactive" | "host">;
+  setup_mode: "receive" | "session" | "host";
+  capabilities: MachineCapabilities;
+  machine_kind: "personal" | "hosted";
+  public_identity_key: string;
+  installation_generation: number;
   enrolled_at?: string;
   last_seen_at?: string;
+	availability: AvailabilityPolicy;
 }
 
-export interface ConnectedMachineListResponse { items: ConnectedMachine[] }
+export interface MachineCapabilityAvailability {
+  configured: boolean;
+  observed: boolean;
+}
 
-export interface ConnectedMachineOverview {
+export interface MachineCapabilities {
+  file_receive: MachineCapabilityAvailability;
+  preview_launch: MachineCapabilityAvailability;
+  terminal_host: MachineCapabilityAvailability;
+  codex_host: MachineCapabilityAvailability;
+  session_host: MachineCapabilityAvailability;
+  keep_awake: MachineCapabilityAvailability;
+}
+
+export type AvailabilityMode = "allow_sleep" | "keep_awake";
+export type AvailabilityStatus = "applied" | "pending" | "offline" | "unsupported" | "error";
+
+export interface AvailabilityPolicy {
+	schema: "paperboat.availability-policy/v1";
+	desired_mode: AvailabilityMode;
+	desired_version: number;
+	observed_mode?: AvailabilityMode;
+	observed_version: number;
+	observed_at?: string;
+	status: AvailabilityStatus;
+	error_code?: string;
+	host_service_version?: string;
+	host_service_scope?: "system";
+	update_rollbacks: number;
+}
+
+export interface MachineListResponse { items: Machine[] }
+
+export interface Preview {
+  id: string;
+  environment_id: string;
+  project_id?: string;
+  resource_id?: string;
+  user_id?: string;
+  logical_name: string;
+  preview_key: string;
+  url: string;
+  target_port: number;
+  state: string;
+  environment_name: string;
+  environment_kind: "hosted" | "byod" | string;
+  owner_email: string;
+  expires_at?: string;
+  source_kind: "application" | "file" | "directory";
+  owner_mode: "runtime" | "foreground" | "detached";
+}
+
+export interface MachineOverview {
   entitlement_state: string;
   product_code?: string;
   period_start?: string;
@@ -43,6 +100,45 @@ export interface ConnectedMachineOverview {
   consumed_topup_bytes: number;
   paid_topup_remaining_bytes: number;
   bootstrap_command?: string;
+}
+
+export type MachineEnrollmentState =
+  | "awaiting_bootstrap"
+  | "awaiting_approval"
+  | "approved"
+  | "material_issued"
+  | "installing"
+  | "connecting"
+  | "ready"
+  | "cancelled"
+  | "expired"
+  | "denied"
+  | "failed_retryable"
+  | "revoked"
+  | "disconnected"
+  | "deleted";
+
+export interface MachineEnrollment {
+  id: string;
+  operation_id: string;
+  state: MachineEnrollmentState;
+  generation: number;
+  pairing_id?: string;
+  user_code?: string;
+  machine_id?: string;
+  requested_display_name?: string;
+  platform?: string;
+  architecture?: string;
+  workspace_root?: string;
+  expires_at: string;
+  cancelled_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MachineEnrollmentStart extends MachineEnrollment {
+  bootstrap_token: string;
+  bootstrap_command: string;
 }
 
 export type DeviceRequestState =
@@ -61,11 +157,17 @@ export interface DeviceRequest {
   issued_at: string;
   expires_at: string;
   state: DeviceRequestState;
+  issuer: string;
+  account: {
+    id: string;
+    email: string;
+    display_name: string;
+  };
 }
 
-export interface AuthorizedClient {
-  client_session_id: string;
-  client_id: "paperboat-cli";
+export interface CLIClientSession {
+  cli_client_session_id: string;
+  client_id: "paperboat";
   client_label: string;
   device_type: "desktop" | "server" | "container";
   os: string;
@@ -79,8 +181,8 @@ export interface AuthorizedClient {
   current: boolean;
 }
 
-export interface AuthorizedClientList {
-  items: AuthorizedClient[];
+export interface CLIClientSessionList {
+  items: CLIClientSession[];
   pagination: {
     limit: number;
     offset: number;
@@ -188,7 +290,6 @@ export interface ProjectConfig {
   machine_type_code: string;
   region_code: string;
   preset_codes: string[];
-  idle_timeout_code: string;
   setup_script_ref?: string;
   config_hash: string;
 }
@@ -231,6 +332,8 @@ export interface ProjectEvent {
 }
 
 export type ConfigSyncState =
+  | "disabled"
+  | "consent_required"
   | "restoring"
   | "watching"
   | "pending"
@@ -240,51 +343,90 @@ export type ConfigSyncState =
   | "conflict"
   | "error"
   | "offline"
-  | "idle";
+  | "revoked"
+  | "sync_uncertain";
 
 export interface ConfigSyncPathSummary {
   path: string;
   bytes?: number;
   reason: string;
+  revision?: string;
 }
 
-export interface ConfigSyncMachineStatus {
-  project_id: string;
-  project_name: string;
-  project_state: ProjectState;
+export interface ConfigSyncEnvironmentStatus {
   machine_id: string;
+  environment_id: string;
+  display_name: string;
+  profile: "hosted" | "byod";
+  environment_state: string;
   state: ConfigSyncState;
-  last_result_state?: ConfigSyncState;
+  assignment_id?: string;
+  assignment_version?: number;
+  repository_id?: string;
+  repository_name?: string;
+	mode?: "pull_only" | "push_only" | "bidirectional";
+  consent_state?: "not_required" | "pending" | "accepted" | "stale" | "revoked";
+  warning_revision?: string;
+  helper_id?: string;
+  helper_generation?: number;
   last_attempt_at?: string;
   last_successful_sync_at?: string;
-  remote_commit?: string;
-  pending_path_count: number;
-  classifier_pending?: ConfigSyncPathSummary[];
+  updated_at?: string;
+  remote_revision?: string;
+  manifest_health?: "healthy" | "empty" | "missing" | "invalid";
+  manifest_revision?: string;
+  managed_path_count: number;
+  pending_clean_path_count: number;
+  last_applied_revision?: string;
+  last_published_revision?: string;
   skipped: ConfigSyncPathSummary[];
   conflicts: ConfigSyncPathSummary[];
   error_code?: string;
-  error_message?: string;
-  heartbeat_at?: string;
-  status_updated_at?: string;
-  max_file_bytes: number;
-  max_batch_bytes: number;
-  policy_revision: string;
-  classifier_policy_revision?: string;
-  classifier_model_revision?: string;
-  classifier_health?: "healthy" | "degraded" | "unavailable" | "disabled";
-  encryption_key_version?: number;
+  recovery_actions: string[];
+  policy_revision?: string;
+  sync_revision?: number;
 }
 
 export interface ConfigSyncStatus {
-  repository: { owner: string; name: string; branch: string; web_url: string };
-  policy: { revision: string; max_file_bytes: number; max_batch_bytes: number; format: string; mandatory_exclusions: string[] };
+  policy: { mode: "disabled" | "read_only" | "leased_writes"; byod_enabled: boolean; revision: string; max_file_bytes: number; max_batch_bytes: number; format: string; manifest_contract: string; manifest_max_bytes: number; manifest_max_lines: number; manifest_max_pattern_bytes: number };
   state: ConfigSyncState;
-  projects: ConfigSyncMachineStatus[];
+  environments: ConfigSyncEnvironmentStatus[];
 }
 
-export type ConfigClassificationDecision = "portable" | "project_only" | "exclude";
-export interface ConfigClassificationOverride { path: string; decision: ConfigClassificationDecision; mandatory: boolean; updated_at: string }
-export interface ConfigRecoveryKey { identity: string; recipient: string; key_version: number }
+export interface ConfigRepository {
+  id: string;
+  provider: "github";
+  external_ref: string;
+  display_name: string;
+  state: "active" | "disconnected" | "inaccessible" | "quarantined";
+}
+
+export interface ConfigAssignment {
+  id: string;
+  machine_id: string;
+  environment_id: string;
+  repository_id?: string;
+	mode: "pull_only" | "push_only" | "bidirectional";
+  consent_state: "not_required" | "pending" | "accepted" | "stale" | "revoked";
+  warning_revision?: string;
+  version: number;
+}
+
+export interface ConfigWarningFacts {
+  revision: string;
+  machine_name: string;
+  repository_name: string;
+  canonical_scope: string;
+	mode: "pull_only" | "push_only" | "bidirectional";
+	manifest_scope: string;
+	repository_visibility: string;
+	history_retention: string;
+  conflict_behavior: string;
+	force_behavior: string;
+  disable_action: string;
+  offline_behavior: string;
+	access_consequence: string;
+}
 
 export interface CheckoutSession {
   url: string;
@@ -315,13 +457,6 @@ export interface CatalogPreset {
   code: string;
   name: string;
   description: string;
-  active: boolean;
-  version: number;
-}
-
-export interface CatalogIdleTimeout {
-  code: string;
-  duration_seconds: number;
   active: boolean;
   version: number;
 }

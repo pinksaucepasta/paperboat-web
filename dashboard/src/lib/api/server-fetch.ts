@@ -1,7 +1,7 @@
 import "server-only";
 
 import { cookies } from "next/headers";
-import { serverBaseUrl } from "./server";
+import { fetchPaperboatServer, serverBaseUrl } from "./server";
 import { unwrap } from "./client";
 
 /**
@@ -11,7 +11,7 @@ import { unwrap } from "./client";
  */
 export async function pbServerFetch<T>(path: string): Promise<T> {
   const cookieStore = await cookies();
-  const res = await fetch(serverBaseUrl() + path, {
+  const res = await fetchPaperboatServer(serverBaseUrl() + path, {
     headers: { cookie: cookieStore.toString() },
     cache: "no-store",
   });

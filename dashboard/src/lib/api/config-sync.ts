@@ -4,30 +4,108 @@ import * as React from "react";
 
 import { pbFetch } from "./client";
 import { useApi } from "./use-api";
-import type { ConfigClassificationDecision, ConfigClassificationOverride, ConfigRecoveryKey, ConfigSyncStatus } from "./types";
+import type {
+  ConfigAssignment,
+  ConfigRepository,
+  ConfigSyncStatus,
+  ConfigWarningFacts,
+} from "./types";
 
 const TRANSITIONAL_SYNC_STATES = new Set(["restoring", "watching", "pending", "syncing"]);
-const ACTIVE_PROJECT_STATES = new Set([
-  "creating",
-  "provisioning_storage",
-  "provisioning_machine",
-  "starting",
-  "running",
-  "stopping",
-  "restarting",
-]);
-
 export function getConfigSyncStatus(): Promise<ConfigSyncStatus> {
-  return pbFetch<ConfigSyncStatus>("/api/config-sync/status");
+  return pbFetch<ConfigSyncStatus>("/v1/config-sync/status");
 }
 
-export function listConfigSyncOverrides(): Promise<ConfigClassificationOverride[]> { return pbFetch("/api/config-sync/overrides"); }
-export function putConfigSyncOverride(path: string, decision: ConfigClassificationDecision): Promise<{path:string;decision:ConfigClassificationDecision}> { return pbFetch("/api/config-sync/overrides",{method:"PUT",body:{path,decision}}); }
-export function deleteConfigSyncOverride(path: string): Promise<{deleted:boolean}> { return pbFetch("/api/config-sync/overrides",{method:"DELETE",body:{path}}); }
-export function exportConfigRecoveryKey(): Promise<ConfigRecoveryKey> { return pbFetch("/api/config-sync/recovery-key/export",{method:"POST"}); }
-export function rotateConfigRecoveryKey(): Promise<{recipient:string;key_version:number;state:string}> { return pbFetch("/api/config-sync/recovery-key/rotate",{method:"POST"}); }
+export interface ConfigRepositoryCandidate {
+  provider: "github";
+  external_id: string;
+  display_name: string;
+  default_branch: string;
+}
 
-export function useConfigSyncOverrides() { const request=React.useCallback(()=>listConfigSyncOverrides(),[]); return useApi(request); }
+export function listConfigRepositories(): Promise<{ items: ConfigRepository[] }> {
+  return pbFetch("/v1/config-repositories");
+}
+
+export function listConfigRepositoryCandidates(): Promise<{ items: ConfigRepositoryCandidate[] }> {
+  return pbFetch("/v1/config-repositories/candidates");
+}
+
+export function connectConfigRepository(candidate: ConfigRepositoryCandidate): Promise<ConfigRepository> {
+  return pbFetch("/v1/config-repositories", {
+    method: "POST",
+    body: { provider: candidate.provider, external_ref: candidate.external_id, display_name: candidate.display_name },
+  });
+}
+
+export function disconnectConfigRepository(repositoryId: string): Promise<void> {
+  return pbFetch(`/v1/config-repositories/${encodeURIComponent(repositoryId)}`, { method: "DELETE" });
+}
+
+export type ConfigAssignmentMode = "pull_only" | "push_only" | "bidirectional";
+
+export function assignConfigRepository(machineId: string, repositoryId: string, mode: ConfigAssignmentMode, expectedVersion: number): Promise<ConfigAssignment> {
+  return pbFetch(`/v1/machines/${encodeURIComponent(machineId)}/config-assignment`, {
+    method: "PUT",
+    body: { repository_id: repositoryId, mode, warning_revision: "", expected_version: expectedVersion },
+  });
+}
+
+export function unassignConfigRepository(machineId: string, expectedVersion: number): Promise<void> {
+  return pbFetch(`/v1/machines/${encodeURIComponent(machineId)}/config-assignment?expected_version=${expectedVersion}`, { method: "DELETE" });
+}
+
+export function getConfigWarning(machineId: string): Promise<ConfigWarningFacts> {
+  return pbFetch(`/v1/machines/${encodeURIComponent(machineId)}/config-assignment/warning`);
+}
+
+export function acceptConfigConsent(machineId: string, revision: string, expectedVersion: number): Promise<ConfigAssignment> {
+  return pbFetch(`/v1/machines/${encodeURIComponent(machineId)}/config-assignment/consent`, {
+    method: "POST", body: { warning_revision: revision, expected_version: expectedVersion },
+  });
+}
+
+export function removeConfigConsent(machineId: string, expectedVersion: number): Promise<ConfigAssignment> {
+  return pbFetch(`/v1/machines/${encodeURIComponent(machineId)}/config-assignment/consent?expected_version=${expectedVersion}`, { method: "DELETE" });
+}
+
+export type ConfigConflictResolutionAction = "keep_local" | "keep_remote";
+
+export function resolveConfigConflict(
+  environmentId: string,
+  input: {
+    path: string;
+    conflict_revision: string;
+    expected_remote_revision: string;
+    expected_assignment_version: number;
+    action: ConfigConflictResolutionAction;
+  },
+): Promise<{ id: string; action: ConfigConflictResolutionAction }> {
+  return pbFetch(`/v1/config-sync/environments/${encodeURIComponent(environmentId)}/conflict-resolutions`, {
+    method: "POST",
+    body: input,
+  });
+}
+
+export type ConfigForceAction = "force_pull" | "force_push";
+
+export function forceConfigSync(
+  environmentId: string,
+  input: {
+    scope: "path" | "config";
+    path?: string;
+    conflict_revision?: string;
+    expected_remote_revision: string;
+    expected_assignment_version: number;
+    action: ConfigForceAction;
+    confirmation: "FORCE PULL" | "FORCE PUSH";
+  },
+): Promise<{ id: string; scope: "path" | "config"; action: ConfigForceAction }> {
+  return pbFetch(`/v1/config-sync/environments/${encodeURIComponent(environmentId)}/force`, {
+    method: "POST",
+    body: input,
+  });
+}
 
 export function useConfigSyncStatus() {
   const request = React.useCallback(() => getConfigSyncStatus(), []);
@@ -44,11 +122,9 @@ export function useConfigSyncStatus() {
 }
 
 export function configSyncNeedsPolling(status: ConfigSyncStatus): boolean {
-  return status.projects.some(
-    (project) =>
-      ACTIVE_PROJECT_STATES.has(project.project_state) ||
-      TRANSITIONAL_SYNC_STATES.has(project.state) ||
-      (project.classifier_pending?.length ?? 0) > 0,
+  return status.environments.some(
+    (environment) =>
+	  TRANSITIONAL_SYNC_STATES.has(environment.state),
   );
 }
 

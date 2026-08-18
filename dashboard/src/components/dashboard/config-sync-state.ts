@@ -12,7 +12,10 @@ export function configSyncBadge(state: ConfigSyncState): { status: Status; label
     case "conflict": return { status: "failed", label: "Conflict" };
     case "error": return { status: "failed", label: "Error" };
     case "offline": return { status: "failed", label: "Offline" };
-    case "idle": return { status: "stopped", label: "Idle" };
+    case "disabled": return { status: "stopped", label: "Disabled" };
+    case "consent_required": return { status: "queued", label: "Consent required" };
+    case "revoked": return { status: "failed", label: "Revoked" };
+    case "sync_uncertain": return { status: "degraded", label: "Checking remote" };
   }
 }
 

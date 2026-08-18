@@ -10,7 +10,7 @@ const REAUTH_PURPOSE_COOKIE = "paperboat_reauth_purpose";
 
 /**
  * WorkOS redirects here with `?code&state`. We hand both to the server's
- * `/api/auth/workos/callback` (forwarding the `paperboat_oauth_state` cookie it
+ * `/v1/auth/workos/callback` (forwarding the `paperboat_oauth_state` cookie it
  * set at sign-in). The server validates state, exchanges the code, and returns
  * `Set-Cookie` for the session + CSRF, which we relay onto the dashboard origin.
  */
@@ -22,7 +22,7 @@ export async function GET(req: Request): Promise<Response> {
 	const cookieHeader = req.headers.get("cookie") ?? "";
 	const reauthPurpose = readCookieValue(cookieHeader, REAUTH_PURPOSE_COOKIE);
 	if (reauthPurpose) {
-		const serverRes = await fetch(serverBaseUrl() + "/api/auth/workos/reauth/callback", { method: "POST", headers: { "content-type": "application/json", cookie: cookieHeader }, body: JSON.stringify({ code, state, redirect_uri: redirectUri, purpose: reauthPurpose }), cache: "no-store" });
+		const serverRes = await fetch(serverBaseUrl() + "/v1/auth/workos/reauth/callback", { method: "POST", headers: { "content-type": "application/json", cookie: cookieHeader }, body: JSON.stringify({ code, state, redirect_uri: redirectUri, purpose: reauthPurpose }), cache: "no-store" });
 		const location = serverRes.ok ? "/dashboard/configuration?reauthenticated=" + encodeURIComponent(reauthPurpose) : "/dashboard/configuration?error=reauthentication";
 		const res = new Response(null, { status: 302, headers: { location: new URL(location, req.url).toString() } });
 		for (const cookie of serverRes.headers.getSetCookie()) res.headers.append("set-cookie", cookie);
@@ -34,7 +34,7 @@ export async function GET(req: Request): Promise<Response> {
     return Response.redirect(new URL("/login?error=oauth", req.url), 302);
   }
 
-  const serverRes = await fetch(serverBaseUrl() + "/api/auth/workos/callback", {
+  const serverRes = await fetch(serverBaseUrl() + "/v1/auth/workos/callback", {
     method: "POST",
     headers: {
       "content-type": "application/json",

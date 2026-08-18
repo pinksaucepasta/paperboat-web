@@ -3,5 +3,5 @@ import type { Me } from "./types";
 
 /** Browser: current user. */
 export function getMe(): Promise<Me> {
-  return pbFetch<Me>("/api/me");
+  return pbFetch<Me>("/v1/me");
 }

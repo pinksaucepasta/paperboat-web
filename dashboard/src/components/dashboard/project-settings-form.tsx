@@ -8,14 +8,12 @@ import { CloudServerIcon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { ApiError } from "@/lib/api/client";
 import { getUsage } from "@/lib/api/billing";
 import {
-  listCatalogIdleTimeouts,
   listCatalogMachineTypes,
   listCatalogPresets,
   listCatalogRegions,
 } from "@/lib/api/catalog";
 import { useProjectActions, useProjectBusy } from "@/lib/api/use-projects";
 import type {
-  CatalogIdleTimeout,
   CatalogMachineType,
   CatalogPreset,
   CatalogRegion,
@@ -42,7 +40,6 @@ type Options = {
   machines: CatalogMachineType[];
   regions: CatalogRegion[];
   presets: CatalogPreset[];
-  timeouts: CatalogIdleTimeout[];
   availableStorageGB: number;
 };
 
@@ -60,17 +57,15 @@ export function ProjectSettingsForm({ project }: { project: Project }) {
       listCatalogMachineTypes(),
       listCatalogRegions(),
       listCatalogPresets(),
-      listCatalogIdleTimeouts(),
       getUsage(),
     ])
-      .then(([machines, regions, presets, timeouts, usage]) => {
+      .then(([machines, regions, presets, usage]) => {
         if (!active) return;
         setError(undefined);
         setOptions({
           machines: machines.filter((item) => item.active),
           regions: regions.filter((item) => item.enabled),
           presets: presets.filter((item) => item.active),
-          timeouts: timeouts.filter((item) => item.active),
           availableStorageGB: usage.available_storage_gb,
         });
       })
@@ -98,7 +93,6 @@ export function ProjectSettingsForm({ project }: { project: Project }) {
         storage_gb: Number(form.get("storage_gb")),
         machine_type_code: String(form.get("machine_type_code")),
         region_code: String(form.get("region_code")),
-        idle_timeout_code: String(form.get("idle_timeout_code")),
         preset_codes: presetCodes,
         ...(setupScript ? { setup_script: setupScript } : {}),
       });
@@ -169,16 +163,6 @@ export function ProjectSettingsForm({ project }: { project: Project }) {
                     Up to {maximumStorage} GB, including this project&apos;s current allocation.
                   </FieldDescription>
                 </Field>
-                <Field>
-                  <FieldLabel htmlFor="idle_timeout_code">Idle timeout</FieldLabel>
-                  <NativeSelect id="idle_timeout_code" name="idle_timeout_code" className="w-full" defaultValue={cfg.idle_timeout_code} required>
-                    {options.timeouts.map((timeout) => (
-                      <NativeSelectOption key={timeout.code} value={timeout.code}>
-                        {Math.round(timeout.duration_seconds / 60)} minutes
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
-                </Field>
               </div>
 
               {options.presets.length > 0 ? (
@@ -220,12 +204,12 @@ export function ProjectSettingsForm({ project }: { project: Project }) {
                 </FieldDescription>
               </Field>
 
-              {options.machines.length === 0 || options.regions.length === 0 || options.timeouts.length === 0 ? (
+              {options.machines.length === 0 || options.regions.length === 0 ? (
                 <FieldError>The catalog does not currently contain every option needed to update this project.</FieldError>
               ) : null}
 
               <div className="flex justify-end border-t pt-5">
-                <Button type="submit" disabled={busy || options.machines.length === 0 || options.regions.length === 0 || options.timeouts.length === 0}>
+                <Button type="submit" disabled={busy || options.machines.length === 0 || options.regions.length === 0}>
                   {busy ? <Spinner className="size-4" /> : null}
                   Save changes
                 </Button>

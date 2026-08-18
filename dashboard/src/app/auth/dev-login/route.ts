@@ -15,16 +15,38 @@ export async function GET(req: Request): Promise<Response> {
     return new Response("Dev login is disabled.", { status: 404 });
   }
 
+  const seededSession = process.env.PAPERBOAT_DEV_SESSION_TOKEN;
+  const seededCSRF = process.env.PAPERBOAT_DEV_CSRF_TOKEN;
+  if (seededSession || seededCSRF) {
+    if (!seededSession || !seededCSRF) {
+      return new Response("Dev login session is incomplete.", { status: 500 });
+    }
+    const res = new Response(null, {
+      status: 302,
+      headers: { location: new URL("/dashboard", req.url).toString() },
+    });
+    const cookieOptions = "Path=/; SameSite=Lax; Max-Age=2592000";
+    res.headers.append(
+      "set-cookie",
+      `paperboat_session=${seededSession}; ${cookieOptions}; HttpOnly`,
+    );
+    res.headers.append(
+      "set-cookie",
+      `paperboat_csrf=${seededCSRF}; ${cookieOptions}`,
+    );
+    return res;
+  }
+
   const url = new URL(req.url);
-  const email = url.searchParams.get("email") ?? "demo@paperboat.dev";
-  const name = url.searchParams.get("name") ?? "Demo User";
-  const subject = url.searchParams.get("subject") ?? "sub_demo";
+  const email = url.searchParams.get("email") ?? "admin@pprbt.dev";
+  const name = url.searchParams.get("name") ?? "Admin";
+  const subject = url.searchParams.get("subject") ?? "sub_admin";
   const code = `${subject}:${email}:${name}`;
 
   const base = serverBaseUrl();
 
   // 1. Ask the server to mint an OAuth state (sets the oauth-state cookie).
-  const stateRes = await fetch(base + "/api/auth/workos/state", {
+  const stateRes = await fetch(base + "/v1/auth/workos/state", {
     cache: "no-store",
   });
   if (!stateRes.ok) {
@@ -34,7 +56,7 @@ export async function GET(req: Request): Promise<Response> {
   const oauthCookies = stateRes.headers.getSetCookie();
 
   // 2. Complete the callback with the synthetic code, forwarding the state cookie.
-  const callbackRes = await fetch(base + "/api/auth/workos/callback", {
+  const callbackRes = await fetch(base + "/v1/auth/workos/callback", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -57,8 +79,12 @@ export async function GET(req: Request): Promise<Response> {
     status: 302,
     headers: { location: new URL("/dashboard", req.url).toString() },
   });
+  const localHTTP = url.protocol === "http:";
   for (const cookie of callbackRes.headers.getSetCookie()) {
-    res.headers.append("set-cookie", cookie);
+    res.headers.append(
+      "set-cookie",
+      localHTTP ? cookie.replace(/;\s*Secure(?=;|$)/gi, "") : cookie,
+    );
   }
   return res;
 }
