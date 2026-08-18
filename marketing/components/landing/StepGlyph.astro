@@ -1,0 +1,164 @@
+---
+/**
+ * Isometric glyphs for the four steps, drawn on the same lattice and the same
+ * shading ramp as the hero so the page reads as one drawing broken up.
+ * Each glyph stands on a plinth of the identical size, which keeps the four
+ * shapes visually comparable rather than four unrelated icons.
+ *
+ * The viewBox is cropped to the union of all four drawings rather than to the
+ * lattice, which reclaims the dead margin the glyphs were being scaled down by.
+ * It has to be the union and not each glyph's own extent: a per-glyph crop would
+ * scale each drawing differently and break exactly the comparability the shared
+ * plinth exists to give.
+ */
+import { box, ink, knockout, laptop, plane, poly } from "@/lib/iso";
+import type { Vec3 } from "@/lib/iso";
+
+interface Props {
+  name: "environment" | "device" | "terminal" | "preview";
+  class?: string;
+}
+const { name, class: className } = Astro.props;
+
+const O: [number, number] = [60, 64];
+const PLINTH = { x0: -30, x1: 30, y0: -30, y1: 30 };
+const CUT = "fill:var(--background)";
+
+const ground = plane(PLINTH, O);
+
+// 1 — a machine standing on its project volume
+const volume = box([-18, -18, 0], [36, 36, 6], O);
+const machine = box([-18, -18, 6], [36, 36, 20], O);
+const vents = [20, 16].flatMap((z) =>
+  [0, 1, 2].map((col) => {
+    const y = -14 + col * 10;
+    return poly(
+      [
+        [18, y, z],
+        [18, y + 6, z],
+        [18, y + 6, z - 2],
+        [18, y, z - 2],
+      ],
+      O,
+    );
+  }),
+);
+
+// 2 — the laptop you already work on
+const { base: baseBox, lid, lidFace } = laptop([-20, -8, 0], [40, 28, 4], O);
+const lidLines = [
+  [0.16, 0.3, 0.72],
+  [0.16, 0.66, 0.48],
+].map(([u0, u1, v]) =>
+  poly([lid(u0, v), lid(u1, v), lid(u1, v - 0.13), lid(u0, v - 0.13)], O),
+);
+
+// 3 — a durable terminal session, standing
+const panelFoot = box([-8, -22, 0], [14, 44, 3], O);
+const panel = box([-4, -20, 3], [4, 40, 26], O);
+const screen = (u: number, v: number): Vec3 => [0, -20 + 40 * u, 3 + 26 * v];
+const prompt = [
+  [0.12, 0.24, 0.78],
+  [0.3, 0.84, 0.78],
+  [0.12, 0.62, 0.54],
+  [0.12, 0.74, 0.3],
+].map(([u0, u1, v]) =>
+  poly([screen(u0, v), screen(u1, v), screen(u1, v - 0.12), screen(u0, v - 0.12)], O),
+);
+
+// 4 — one public URL, reachable by anyone who has it
+const urlBar = poly(
+  [screen(0.12, 0.82), screen(0.88, 0.82), screen(0.88, 0.62), screen(0.12, 0.62)],
+  O,
+);
+const urlBody = [
+  [0.12, 0.6, 0.44],
+  [0.12, 0.78, 0.24],
+].map(([u0, u1, v]) =>
+  poly([screen(u0, v), screen(u1, v), screen(u1, v - 0.1), screen(u0, v - 0.1)], O),
+);
+const visitors = [-14, 0, 14].map((y) => box([16, y - 4, 0], [8, 8, 8], O));
+const visitorRoute = poly([[4, -14, 1], [20, -14, 1], [20, 18, 1]], O);
+---
+
+<svg
+  viewBox="5 11 110 86"
+  aria-hidden="true"
+  focusable="false"
+  fill="none"
+  stroke-linejoin="round"
+  class={className}
+>
+  <g style="stroke:var(--primary)" vector-effect="non-scaling-stroke">
+    <polygon points={ground} fill={ink(1)} stroke="none" opacity="0.45" />
+    <polygon points={ground} stroke-width="1" opacity="0.4" />
+
+    {
+      name === "environment" && (
+        <g stroke-width="1">
+          <polygon points={volume.left} fill={ink(6)} />
+          <polygon points={volume.right} fill={ink(10)} />
+          <polygon points={machine.top} fill={ink(1)} />
+          <polygon points={machine.left} fill={ink(4)} />
+          <polygon points={machine.right} fill={knockout(2)} />
+          {vents.map((v) => (
+            <polygon points={v} style={CUT} stroke="none" />
+          ))}
+        </g>
+      )
+    }
+
+    {
+      name === "device" && (
+        <g stroke-width="1">
+          <polygon points={baseBox.top} fill={ink(2)} />
+          <polygon points={baseBox.left} fill={ink(6)} />
+          <polygon points={baseBox.right} fill={ink(10)} />
+          <polygon points={lidFace} fill={knockout(2)} />
+          {lidLines.map((r) => (
+            <polygon points={r} style={CUT} stroke="none" />
+          ))}
+        </g>
+      )
+    }
+
+    {
+      name === "terminal" && (
+        <g stroke-width="1">
+          <polygon points={panelFoot.left} fill={ink(6)} />
+          <polygon points={panelFoot.right} fill={ink(10)} />
+          <polygon points={panel.top} fill={ink(2)} />
+          <polygon points={panel.left} fill={ink(6)} />
+          <polygon points={panel.right} fill={knockout(2)} />
+          {prompt.map((r) => (
+            <polygon points={r} style={CUT} stroke="none" />
+          ))}
+        </g>
+      )
+    }
+
+    {
+      name === "preview" && (
+        <g stroke-width="1">
+          <polyline points={visitorRoute} stroke-width="1.25" stroke-dasharray="3 3" />
+          <polygon points={panelFoot.left} fill={ink(6)} />
+          <polygon points={panelFoot.right} fill={ink(10)} />
+          <polygon points={panel.top} fill={ink(2)} />
+          <polygon points={panel.left} fill={ink(6)} />
+          <polygon points={panel.right} fill={knockout(2)} />
+          <polygon points={urlBar} style={CUT} stroke="none" />
+          {urlBody.map((r) => (
+            <polygon points={r} style={CUT} stroke="none" opacity="0.7" />
+          ))}
+          {visitors.map((v) => (
+            <g>
+              <polygon points={v.top} fill={ink(2)} />
+              <polygon points={v.left} fill={ink(6)} />
+              <polygon points={v.right} fill={ink(12)} />
+            </g>
+          ))}
+        </g>
+      )
+    }
+  </g>
+</svg>

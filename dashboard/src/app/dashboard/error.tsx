@@ -26,7 +26,7 @@ export default function DashboardError({
   }, [error]);
 
   return (
-    <Empty className="min-h-[24rem] border">
+    <Empty className="min-h-[24rem] rounded-2xl border">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <HugeiconsIcon icon={Alert02Icon} />

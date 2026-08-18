@@ -80,7 +80,6 @@ export default function ProjectsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Workspace"
         title="Projects"
         description="Each project is one cloud machine and volume, cloned from your repo and reachable from anywhere through agentunnel."
         actions={
@@ -102,7 +101,7 @@ export default function ProjectsPage() {
       ) : error ? (
         <ProjectsError error={error} />
       ) : projects.length === 0 ? (
-        <Empty className="min-h-[20rem] border">
+        <Empty className="min-h-[20rem] rounded-2xl border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <HugeiconsIcon icon={Folder01Icon} />
@@ -248,7 +247,7 @@ function ProjectsError({ error }: { error: ApiError }) {
   // The server gates projects on an active plan and a linked GitHub account.
   if (error.code === "payment_required") {
     return (
-      <Empty className="min-h-[20rem] border">
+      <Empty className="min-h-[20rem] rounded-2xl border">
         <EmptyHeader>
           <EmptyTitle className="font-heading">A plan is required</EmptyTitle>
           <EmptyDescription>
@@ -265,7 +264,7 @@ function ProjectsError({ error }: { error: ApiError }) {
   }
   if (error.code === "github_required" || error.code === "github_scope_denied") {
     return (
-      <Empty className="min-h-[20rem] border">
+      <Empty className="min-h-[20rem] rounded-2xl border">
         <EmptyHeader>
           <EmptyTitle className="font-heading">Connect GitHub</EmptyTitle>
           <EmptyDescription>
@@ -282,7 +281,7 @@ function ProjectsError({ error }: { error: ApiError }) {
     );
   }
   return (
-    <Empty className="min-h-[20rem] border">
+    <Empty className="min-h-[20rem] rounded-2xl border">
       <EmptyHeader>
         <EmptyTitle className="font-heading">Couldn&apos;t load projects</EmptyTitle>
         <EmptyDescription>{error.message}</EmptyDescription>

@@ -49,7 +49,7 @@ export function ConfigurationStatusView({ data, refreshError }: { data: ConfigSy
 
   return (
     <>
-      <PageHeader eyebrow="Workspace" title="Configuration" description="Portable agent settings synchronize automatically across every project machine." />
+      <PageHeader title="Configuration" description="Portable agent settings synchronize automatically across every project machine." />
 
       {refreshError ? (
         <Alert>
@@ -59,7 +59,7 @@ export function ConfigurationStatusView({ data, refreshError }: { data: ConfigSy
         </Alert>
       ) : null}
 
-      <div className="grid items-start gap-6 min-[960px]:grid-cols-[minmax(0,1.4fr)_minmax(16rem,0.6fr)]">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.6fr)]">
         <Card>
           <CardHeader className="border-b p-5 pb-4">
             <CardTitle>Repository sync</CardTitle>
@@ -80,11 +80,13 @@ export function ConfigurationStatusView({ data, refreshError }: { data: ConfigSy
             <CardTitle>Transfer limits</CardTitle>
             <CardDescription>Files above these limits remain local and are reported below.</CardDescription>
           </CardHeader>
-          <CardContent className="flex items-end justify-between gap-3 px-5 pb-5 pt-4">
-            <Metric label="Per file" value={formatBytes(data.policy.max_file_bytes)} />
-            <Metric label="Per push" value={formatBytes(data.policy.max_batch_bytes)} />
+          <CardContent className="flex flex-wrap items-end gap-3 px-5 pb-5 pt-4">
+            <div className="grid min-w-0 flex-1 grid-cols-2 gap-3">
+              <Metric label="Per file" value={formatBytes(data.policy.max_file_bytes)} />
+              <Metric label="Per push" value={formatBytes(data.policy.max_batch_bytes)} />
+            </div>
             {data.repository.web_url ? (
-              <Button size="sm" variant="outline" nativeButton={false} render={<a href={data.repository.web_url} target="_blank" rel="noreferrer" />}>
+              <Button className="w-full sm:ml-auto sm:w-auto" size="sm" variant="outline" nativeButton={false} render={<a href={data.repository.web_url} target="_blank" rel="noreferrer" />}>
                 <HugeiconsIcon icon={GitBranchIcon} /> Repository
               </Button>
             ) : null}
@@ -142,7 +144,7 @@ export function ConfigurationStatusView({ data, refreshError }: { data: ConfigSy
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 min-[960px]:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-2">
         <ClassificationPanel items={classifierPending} />
         <IssueList title="Skipped files" description="Oversized or unsafe files that stayed on their source machine." items={skipped} empty="No files are being skipped." icon={InformationCircleIcon} />
         <IssueList title="Merge conflicts" description="Concurrent same-path changes preserved in the private configuration repository." items={conflicts} empty="No concurrent changes need attention." icon={CheckmarkCircle02Icon} repoURL={data.repository.web_url} />
@@ -256,9 +258,9 @@ function newestSuccessful(projects: ConfigSyncMachineStatus[]): string | undefin
 }
 
 export function ConfigurationError({ message }: { message: string }) {
-  return <><PageHeader eyebrow="Workspace" title="Configuration" description="Portable agent settings synchronized across project machines." /><Alert variant="error"><HugeiconsIcon icon={Alert02Icon} /><AlertTitle>Configuration status is unavailable</AlertTitle><AlertDescription>{message}</AlertDescription></Alert></>;
+  return <><PageHeader title="Configuration" description="Portable agent settings synchronized across project machines." /><Alert variant="error"><HugeiconsIcon icon={Alert02Icon} /><AlertTitle>Configuration status is unavailable</AlertTitle><AlertDescription>{message}</AlertDescription></Alert></>;
 }
 
 export function ConfigurationLoading() {
-  return <div aria-busy="true" aria-label="Loading configuration synchronization status"><PageHeader eyebrow="Workspace" title="Configuration" description="Portable agent settings synchronized across project machines." /><div className="mt-6 grid gap-4 lg:grid-cols-2"><Skeleton className="h-40" /><Skeleton className="h-40" /></div><Skeleton className="mt-6 h-64" /></div>;
+  return <div aria-busy="true" aria-label="Loading configuration synchronization status"><PageHeader title="Configuration" description="Portable agent settings synchronized across project machines." /><div className="mt-6 grid gap-4 lg:grid-cols-2"><Skeleton className="h-40" /><Skeleton className="h-40" /></div><Skeleton className="mt-6 h-64" /></div>;
 }

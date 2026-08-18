@@ -1,0 +1,72 @@
+---
+/**
+ * The site's shading vocabulary, defined once per document.
+ *
+ * Every isometric scene fills its faces with one of these ordered-dither
+ * patterns instead of a gradient. The patterns live in a single zero-size SVG
+ * at the top of `<body>`; `url(#…)` references resolve document-wide, so the
+ * tiles are downloaded once and reused by every drawing on the page.
+ *
+ * Colors come from the theme tokens, so the ramp follows light/dark without a
+ * second set of assets.
+ */
+import {
+  DITHER_DOT,
+  DITHER_LEVELS,
+  DITHER_TILE,
+  ditherCells,
+} from "@/lib/iso";
+---
+
+<svg
+  aria-hidden="true"
+  focusable="false"
+  width="0"
+  height="0"
+  class="absolute"
+  style="position:absolute;width:0;height:0;overflow:hidden"
+>
+  <defs>
+    {
+      DITHER_LEVELS.map((level) => (
+        <>
+          {/* Indigo dots on the page canvas — the light half of the ramp. */}
+          <pattern
+            id={`pb-dither-${level}`}
+            width={DITHER_TILE}
+            height={DITHER_TILE}
+            patternUnits="userSpaceOnUse"
+          >
+            {/* Fill and rendering hint sit on the group so the dots inherit
+                them: at this density the per-rect copies outweighed the dots. */}
+            <g style="fill:var(--primary)" shape-rendering="crispEdges">
+              {ditherCells(level).map(([x, y, w]) => (
+                <rect x={x} y={y} width={w} height={DITHER_DOT} />
+              ))}
+            </g>
+          </pattern>
+
+          {/* Canvas dots knocked out of solid indigo — the dark half. */}
+          <pattern
+            id={`pb-dither-out-${level}`}
+            width={DITHER_TILE}
+            height={DITHER_TILE}
+            patternUnits="userSpaceOnUse"
+          >
+            <rect
+              width={DITHER_TILE}
+              height={DITHER_TILE}
+              style="fill:var(--primary)"
+              shape-rendering="crispEdges"
+            />
+            <g style="fill:var(--background)" shape-rendering="crispEdges">
+              {ditherCells(level).map(([x, y, w]) => (
+                <rect x={x} y={y} width={w} height={DITHER_DOT} />
+              ))}
+            </g>
+          </pattern>
+        </>
+      ))
+    }
+  </defs>
+</svg>

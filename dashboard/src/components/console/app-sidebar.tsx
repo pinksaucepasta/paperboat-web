@@ -28,31 +28,8 @@ import {
 } from "@/components/ui/menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { navGroups } from "@/components/console/nav-config";
+import { PaperboatMark } from "@/components/paperboat-mark";
 import { cn } from "@/lib/utils";
-
-function PaperboatMark({ className }: { className?: string }) {
-  return (
-    <div
-      className={cn(
-        "flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground",
-        className,
-      )}
-    >
-      {/* Paper boat, drawn to sit optically centered in the tile. */}
-      <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-        <path
-          d="M12 4.5 20.5 9 12 12.5 3.5 9 12 4.5Z"
-          fill="currentColor"
-          opacity="0.55"
-        />
-        <path
-          d="M3.5 12.5c0 3.6 3.8 6.5 8.5 6.5s8.5-2.9 8.5-6.5L12 16 3.5 12.5Z"
-          fill="currentColor"
-        />
-      </svg>
-    </div>
-  );
-}
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -77,7 +54,7 @@ export function AppSidebar() {
             aria-label="Paperboat — overview"
             className="flex min-w-0 flex-1 items-center gap-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:hidden"
           >
-            <PaperboatMark />
+            <PaperboatMark className="h-6 w-auto shrink-0 text-primary" />
             <span className="grid min-w-0 text-left leading-tight">
               <span className="truncate font-heading text-sm font-semibold">
                 Paperboat

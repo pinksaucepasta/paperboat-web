@@ -121,9 +121,7 @@ export function DeviceAuthorization({ code }: { code: string | null }) {
     <main className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-12">
       <div className="flex w-full max-w-lg flex-col gap-6">
         <div className="flex items-center justify-center gap-3" aria-label="Paperboat">
-          <span className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <PaperboatMark className="size-5" />
-          </span>
+          <PaperboatMark className="h-8 w-auto shrink-0 text-primary" />
           <span className="font-heading text-xl font-semibold">Paperboat</span>
         </div>
 

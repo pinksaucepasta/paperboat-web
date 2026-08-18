@@ -179,7 +179,7 @@ function startCartesianLoop({
       needsFill = true
     }
 
-    const itTarget = s.isMouseInChart || s.hovered ? 1 : 0
+    const itTarget = s.hoverLift && (s.isMouseInChart || s.hovered) ? 1 : 0
     let settling = false
     if (Math.abs(intensity - itTarget) > 0.001) {
       intensity += (itTarget - intensity) * 0.16

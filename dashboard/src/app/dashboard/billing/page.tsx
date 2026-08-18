@@ -115,7 +115,6 @@ export default function BillingPage() {
     [canOpenPortal],
   );
   const [opening, setOpening] = React.useState(false);
-  const [changingPlan, setChangingPlan] = React.useState<string | null>(null);
   const [checkingOut, setCheckingOut] = React.useState<string | null>(null);
   const [storageGB, setStorageGB] = React.useState<number | null>(null);
   const [threshold, setThreshold] = React.useState<string | null>(null);
@@ -184,16 +183,15 @@ export default function BillingPage() {
     })).sort(
       (a, b) => Number(a.included_credits) - Number(b.included_credits),
     );
-  }, [planProducts.data, data?.plan_code, data?.trial_eligible]);
+  }, [planProducts.data]);
 
-  async function openPortal(planCode: string | null = null) {
+  async function openPortal() {
     if (!canOpenPortal) {
       toast.error("A subscription is required.", {
         description: "Choose a plan or trial before opening the billing portal.",
       });
       return;
     }
-    setChangingPlan(planCode);
     setOpening(true);
     try {
       const { url } = await createCustomerPortal(window.location.href);
@@ -202,7 +200,6 @@ export default function BillingPage() {
       const message = err instanceof ApiError ? err.message : "Something went wrong.";
       toast.error("Couldn't open the billing portal.", { description: message });
       setOpening(false);
-      setChangingPlan(null);
     }
   }
 
@@ -224,9 +221,8 @@ export default function BillingPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Account"
         title="Billing"
-        description="Change plans with clear proration, or manage payment details through the billing portal."
+        description="Change plans with immediate, itemized proration. Manage payment details and invoices through the billing portal."
       />
 
       {loading && !data ? (
@@ -234,7 +230,7 @@ export default function BillingPage() {
           <Spinner className="size-6 text-muted-foreground" />
         </div>
       ) : error ? (
-        <Empty className="min-h-[16rem] border">
+        <Empty className="min-h-[16rem] rounded-2xl border">
           <EmptyHeader>
             <EmptyTitle className="font-heading">Couldn&apos;t load billing</EmptyTitle>
             <EmptyDescription>{error.message}</EmptyDescription>
@@ -257,7 +253,7 @@ export default function BillingPage() {
                 <Spinner className="size-5 text-muted-foreground" />
               </div>
             ) : planProducts.error ? (
-              <Empty className="min-h-44 border">
+              <Empty className="min-h-44 rounded-2xl border">
                 <EmptyHeader>
                   <EmptyTitle className="font-heading">Couldn&apos;t load plans</EmptyTitle>
                   <EmptyDescription>
@@ -266,7 +262,7 @@ export default function BillingPage() {
                 </EmptyHeader>
               </Empty>
             ) : plans.length === 0 ? (
-              <Empty className="min-h-44 border">
+              <Empty className="min-h-44 rounded-2xl border">
                 <EmptyHeader>
                   <EmptyTitle className="font-heading">No plans available</EmptyTitle>
                   <EmptyDescription>
@@ -282,8 +278,7 @@ export default function BillingPage() {
                   const trialUnavailable =
                     isTrialPlan(plan) && !data?.trial_eligible && !isCurrentPlan;
                   const changingThisPlan =
-                    (opening && changingPlan === plan.product_code) ||
-                    (checkingOut === plan.product_code && plan.product_code !== "");
+                    checkingOut === plan.product_code && plan.product_code !== "";
                   const purchasable = plan.product_code !== "";
                   const presentation = getPlanPresentation(plan);
                   const isPopular = Boolean(presentation?.mostPopular);
@@ -310,14 +305,17 @@ export default function BillingPage() {
                       )}
                     >
                       {isPopular ? (
-                        <p className="flex h-8 items-center justify-center bg-primary text-center font-mono text-xs font-medium uppercase tracking-[0.18em] text-primary-foreground">
+                        <p className="text-eyebrow flex h-11 items-center justify-center bg-primary pb-3 text-center text-primary-foreground">
                           Most popular
                         </p>
                       ) : null}
                       <CardHeader
                         className={cn(
                           "border-b border-border p-6 pb-5",
-                          isPopular && "bg-card",
+                          /* Overlaps the banner by exactly one corner radius so
+                             the card curves up into the indigo, rather than the
+                             banner curving down into the card. */
+                          isPopular && "relative -mt-3.5 rounded-t-xl bg-card",
                         )}
                       >
                         <CardTitle className="flex items-center justify-between gap-3 font-heading text-base font-semibold">
@@ -349,7 +347,7 @@ export default function BillingPage() {
                         </p>
                       </CardHeader>
                       <CardContent className="flex flex-1 flex-col gap-3 p-6">
-                        <p className="font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                        <p className="text-eyebrow text-muted-foreground">
                           What&apos;s included
                         </p>
                         <ul className="flex flex-col gap-2">
@@ -380,11 +378,9 @@ export default function BillingPage() {
                           }
                           className="w-full"
                           onClick={() =>
-                            canOpenPortal
-                              ? openPortal(plan.plan_code)
-                              : plan.product_code
-                                ? startCheckout(plan.product_code, plan.plan_code)
-                                : openPortal(null)
+                            plan.product_code
+                              ? startCheckout(plan.product_code, plan.plan_code)
+                              : openPortal()
                           }
                           disabled={
                             isCurrentPlan ||
@@ -489,7 +485,7 @@ export default function BillingPage() {
                   {data?.active
                     ? isTrial
                       ? "Your trial is active and will convert to Sailor unless canceled before it ends."
-                      : "Your plan is active. Manage changes, payment details, and invoices through the billing portal."
+                      : "Your plan is active. Change plans here; manage payment details and invoices through the billing portal."
                     : "Choose a plan to start using Paperboat."}
                 </p>
               </CardContent>
@@ -499,7 +495,7 @@ export default function BillingPage() {
                     onClick={() => openPortal()}
                     disabled={opening || !canOpenPortal}
                   >
-                    {opening && changingPlan === null ? (
+                    {opening ? (
                       <Spinner data-icon="inline-start" />
                     ) : (
                       <HugeiconsIcon icon={CreditCardIcon} data-icon="inline-start" />

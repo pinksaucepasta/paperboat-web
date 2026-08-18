@@ -1,0 +1,53 @@
+---
+/**
+ * Sticky context strip. No script: the wide navigation collapses to a single
+ * "Get started" action on small screens rather than a disclosure menu, since
+ * every destination is an anchor further down this same page.
+ */
+import BoatMark from "@/components/landing/BoatMark.astro";
+import { NAV, SITE } from "@/lib/site";
+---
+
+<header
+  class="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-sm"
+>
+  <!-- Same width and gutters as the sheet below, so the wordmark sits on the
+       page's left rule at every viewport. -->
+  <div class="mx-auto flex h-14 max-w-[1240px] items-center gap-6 px-6 sm:px-10">
+    <a
+      href="#top"
+      class="flex items-center gap-2.5 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+    >
+      <BoatMark class="h-5 w-auto shrink-0 text-primary" />
+      <span class="font-heading text-base font-semibold tracking-[-0.01em]">Paperboat</span>
+    </a>
+
+    <nav aria-label="Sections" class="hidden flex-1 items-center gap-7 md:flex">
+      {
+        NAV.map((link) => (
+          <a
+            href={link.href}
+            class="text-nav rounded-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            {link.label}
+          </a>
+        ))
+      }
+    </nav>
+
+    <div class="ml-auto flex items-center gap-5 md:ml-0">
+      <a
+        href={SITE.dashboard}
+        class="text-nav hidden rounded-sm text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:inline-flex"
+      >
+        Sign in
+      </a>
+      <a
+        href={SITE.dashboard}
+        class="text-nav inline-flex h-8 items-center rounded-md bg-primary px-3 text-primary-foreground transition-colors outline-none hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      >
+        Get started
+      </a>
+    </div>
+  </div>
+</header>

@@ -70,7 +70,7 @@ export default function ProjectDetailPage() {
   }
   if (error || !project) {
     return (
-      <Empty className="min-h-[20rem] border">
+      <Empty className="min-h-[20rem] rounded-2xl border">
         <EmptyHeader>
           <EmptyTitle className="font-heading">Project not found</EmptyTitle>
           <EmptyDescription>
@@ -88,7 +88,6 @@ export default function ProjectDetailPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Project"
         title={p.name}
         description={p.repository.source_url}
         actions={
@@ -113,7 +112,7 @@ export default function ProjectDetailPage() {
           <span className="text-xs text-muted-foreground">Live updates on</span>
         ) : null}
         {p.restart_required ? (
-          <span className="text-xs text-amber-600 dark:text-amber-400">
+          <span className="text-xs text-warning-foreground">
             Restart required to apply pending changes
           </span>
         ) : null}
@@ -195,7 +194,7 @@ function InfoCard({
   return (
     <Card className="gap-0 py-0">
       <CardContent className="flex flex-col gap-2 p-5">
-        <span className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-[0.14em] text-muted-foreground">
+        <span className="text-eyebrow flex items-center gap-1.5 text-muted-foreground">
           <HugeiconsIcon icon={icon} className="size-3.5" />
           {label}
         </span>

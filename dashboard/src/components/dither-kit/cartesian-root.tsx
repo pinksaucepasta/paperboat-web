@@ -41,18 +41,21 @@ export type CartesianChartProps<TData extends Row> = {
   animate?: boolean
   animationDuration?: number
   replayToken?: number // change to re-play the entrance without remounting
-  /** Set false for a decorative sparkline: keeps the hover lift but no scrub
-   * crosshair / tooltip. */
+  /** Set false for a decorative sparkline: no scrub crosshair / tooltip. */
   interactive?: boolean
   /** Controlled crosshair position (e.g. a committed point) — overrides the
    * internal hover when set. */
   markerIndex?: number | null
-  /** Parent-driven hover (e.g. the whole card/row) — lifts the fill. */
+  /** Parent-driven hover (e.g. the whole card/row). Lifts the fill only when
+   * `hoverLift` is also set. */
   hovered?: boolean
   /** Glow on the dither fill. */
   bloom?: BloomInput
   /** Only bloom while the chart is hovered. */
   bloomOnHover?: boolean
+  /** Brighten and thicken the dither fill while the chart is hovered. Off by
+   * default — it is decoration, not feedback, so charts opt in. */
+  hoverLift?: boolean
   /** Fires with the scrubbed index as the pointer moves (null on leave). */
   onHoverChange?: (index: number | null) => void
   defaultSelectedDataKey?: string | null
@@ -91,6 +94,7 @@ export function CartesianRoot<TData extends Row>({
   hovered = false,
   bloom = "off",
   bloomOnHover = false,
+  hoverLift = false,
   onHoverChange,
   defaultSelectedDataKey = null,
   onSelectionChange,
@@ -116,6 +120,7 @@ export function CartesianRoot<TData extends Row>({
     hovered,
     bloom,
     bloomOnHover,
+    hoverLift,
     defaultSelectedDataKey,
     onSelectionChange,
   })

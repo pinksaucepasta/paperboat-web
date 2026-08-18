@@ -191,7 +191,7 @@ export function LoginDither() {
               "radial-gradient(circle, rgba(150,200,255,0.45), transparent 65%)",
           }}
         />
-        <PaperboatMark className="relative size-7 text-white drop-shadow-[0_2px_10px_rgba(53,143,243,0.65)]" />
+        <PaperboatMark className="relative h-6 w-auto text-white drop-shadow-[0_2px_10px_rgba(53,143,243,0.65)]" />
       </span>
     </>
   );

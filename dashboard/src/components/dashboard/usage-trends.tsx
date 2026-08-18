@@ -107,8 +107,6 @@ export function UsageTrends() {
         <AreaChart
           data={rows}
           config={config}
-          bloom="low"
-          bloomOnHover
           margins={{ top: 12, right: 8, bottom: 26, left: 36 }}
         >
           <Grid />

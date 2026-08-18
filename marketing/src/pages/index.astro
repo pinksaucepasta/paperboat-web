@@ -1,82 +1,368 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import { SiteHeader } from "@/components/site/site-header";
-import { HeroContent } from "@/components/site/hero-content";
-import { DitherImage } from "@/components/site/dither-image";
-import { AgentLogos } from "@/components/site/agent-logos";
-import { SiteFooter } from "@/components/site/site-footer";
-import { SectionIntro } from "@/components/site/section-intro";
-import { HowItWorks } from "@/components/site/how-it-works";
-import { TerminalDemo } from "@/components/site/terminal-demo";
-import { UseCases } from "@/components/site/use-cases";
-import { Architecture } from "@/components/site/architecture";
-import { FeatureSplits } from "@/components/site/feature-splits";
-import { PlatformGrid } from "@/components/site/platform-grid";
-import { Faq } from "@/components/site/faq";
-import { FinalCta } from "@/components/site/final-cta";
+import DitherDefs from "@/components/landing/DitherDefs.astro";
+import SiteHeader from "@/components/landing/SiteHeader.astro";
+import Hero from "@/components/landing/Hero.astro";
+import Section from "@/components/landing/Section.astro";
+import StepGlyph from "@/components/landing/StepGlyph.astro";
+import EnvironmentScene from "@/components/landing/EnvironmentScene.astro";
+import TerminalBlock from "@/components/landing/TerminalBlock.astro";
+import PreviewScene from "@/components/landing/PreviewScene.astro";
+import SiteFooter from "@/components/landing/SiteFooter.astro";
+import { SITE } from "@/lib/site";
+
+const steps = [
+  {
+    glyph: "environment" as const,
+    title: "Create or connect an environment",
+    body: "Start a hosted project from a Git repository, or run the bootstrap command on a machine you already own and approve the pairing in the dashboard.",
+  },
+  {
+    glyph: "device" as const,
+    title: "Approve your device",
+    body: "pb auth login opens a browser approval flow and creates a CLI session you can revoke. It never copies your dashboard cookie.",
+  },
+  {
+    glyph: "terminal" as const,
+    title: "Attach and run the agent",
+    body: "pb selects the environment, attaches to its durable terminal session, and launches or reconnects to the agent already running there.",
+  },
+  {
+    glyph: "preview" as const,
+    title: "Hand out the preview",
+    body: "When the agent serves a local application, Paperboat registers a public HTTPS and WebSocket URL and returns that instead of a localhost address.",
+  },
+];
+
+const environments = [
+  {
+    variant: "hosted" as const,
+    label: "Hosted project",
+    title: "One managed machine, one project volume.",
+    body: "Paperboat provisions the environment, installs the helper, and keeps the machine's state reconciled against what you asked for.",
+    points: [
+      "Machine type and storage come from your plan's pool.",
+      "Presets and setup scripts are applied by the platform, not pasted by hand.",
+      "The machine stops after the idle timeout you set, and resumes on your next connection.",
+      "Runtime credits meter only while a machine is running.",
+    ],
+  },
+  {
+    variant: "byod" as const,
+    label: "Your own machine",
+    title: "Hardware you already own, enrolled deliberately.",
+    body: "A macOS or Linux laptop, desktop, or VM joins through a pairing you approve in the dashboard, with one-time encrypted installation material.",
+    points: [
+      "The helper connects outbound. No inbound port is opened on your machine.",
+      "The same terminal, image paste, and preview workflows as a hosted project.",
+      "Paperboat does not provision its volume, presets, or machine shape.",
+      "Config sync stays off until you assign a repository and accept the warning.",
+    ],
+  },
+];
+
+const terminalFacts = [
+  {
+    title: "Attach from more than one place",
+    body: "Attachments mirror input and output on purpose. Disconnecting a client is not the same as closing the process, clearing history, restarting, or deleting the session.",
+  },
+  {
+    title: "Reconnect without guessing",
+    body: "Reconnect is sequence-aware. It replays what you missed, tells you when there is a gap it could not fill, and never silently sends your input twice.",
+  },
+  {
+    title: "Paste a screenshot into a remote TUI",
+    body: "A validated local image uploads first, then the paste is rewritten to point at the staged remote path. If the upload fails, your original paste survives and you get a visible diagnostic.",
+  },
+];
+
+const configPoints = [
+  {
+    title: "Connection and assignment are separate",
+    body: "You can connect several private config repositories. Each environment has zero or one assigned, and the same repository can serve many environments.",
+  },
+  {
+    title: "Assignment alone changes nothing on your machine",
+    body: "On a BYOD machine, sync also requires you to accept the current versioned warning. Removing that consent revokes the sync credentials and stops future sync.",
+  },
+  {
+    title: "Sync is bounded and reversible",
+    body: "Writer leases, pull-before-push, debounced operations, and preserved conflicts. No force-push, no silent overwrite, and removing an assignment is audited rather than destructive.",
+  },
+];
+
+const lifecyclePoints = [
+  {
+    title: "Changes apply on a restart you asked for",
+    body: "Storage, machine type, presets, and related runtime configuration take effect on the next deliberate restart — never by mutating a machine while it runs.",
+  },
+  {
+    title: "Idle is a setting, not a surprise",
+    body: "You choose the idle timeout per hosted project. The machine stops when it is reached and resumes on the next connection; terminal identity and durable state survive the stop.",
+  },
+  {
+    title: "Credits stop things, and say so",
+    body: "Runtime credits meter while a machine runs. Exhausting them stops running machines and blocks new starts until credits are available, which the dashboard states before it happens.",
+  },
+];
+
+const faqs = [
+  {
+    q: "Do I have to open a port on my own machine?",
+    a: "No. The helper makes an outbound connection to Paperboat's tunnel. No first-release workflow exposes an inbound port, SSH, database forwarding, or raw TCP.",
+  },
+  {
+    q: "What happens to my session when a hosted machine stops?",
+    a: "The machine stops after the idle timeout you configured and resumes on your next connection. Terminal identity and the durable state the session depends on survive the stop.",
+  },
+  {
+    q: "Are preview URLs private?",
+    a: "No. In the first release every preview URL is public: anyone who has the link can open the application. Responses carry no-index, no-referrer, and content-type-safety headers, but there is no password, IP allowlist, or user gate.",
+  },
+  {
+    q: "Will Paperboat touch the dotfiles on my own machine?",
+    a: "Only after you assign a config repository to that machine and accept the current versioned warning. Config sync is disabled by default, and removing consent revokes the credentials that allow it.",
+  },
+  {
+    q: "Which agents can I run?",
+    a: "Agents run as ordinary processes in helper-managed PTYs, launched through Herdr. If a coding agent runs in a terminal on a machine, it runs here.",
+  },
+  {
+    q: "What is deliberately not in the first release?",
+    a: "Papercode applications, review sessions and annotations, private or password-protected previews, SSH product access, raw TCP, and generic NAT traversal.",
+  },
+];
 ---
 
 <Layout>
-	<div class="relative lg:grid lg:grid-cols-2">
-		<!-- Mobile: dither fills the screen as background + blue tint for text contrast -->
-		<div
-			class="absolute inset-0 bg-primary lg:hidden"
-			aria-hidden="true"
-		>
-			<div class="absolute inset-0">
-				<DitherImage client:only="react" />
-			</div>
-			<!-- Blue scrim keeps white text/boat legible over the dither -->
-			<div class="absolute inset-0 bg-primary/50"></div>
-		</div>
+  <DitherDefs />
+  <SiteHeader />
 
-		<!-- Hero content — overlays the dither on mobile, sits on white on desktop -->
-		<section
-			class="relative z-[1] flex min-h-[80vh] flex-col items-center justify-center pt-28 px-6 pb-16 text-center lg:min-h-[70vh] lg:items-start lg:justify-center lg:pt-24 lg:px-10 lg:py-0 lg:text-left"
-		>
-			<HeroContent client:load />
-		</section>
+  <main id="main" class="mx-auto max-w-[1240px] border-x border-border">
+    <Hero />
 
-		<!-- Desktop: dither as the right column -->
-		<section
-			class="relative hidden overflow-hidden bg-primary lg:block lg:min-h-[70vh]"
-		>
-			<DitherImage client:only="react" />
-		</section>
+    <Section
+      id="how"
+      index="01"
+      eyebrow="How it works"
+      title="Four steps, then it is just a terminal."
+      lead="Nothing here asks you to learn our infrastructure. You create an environment, approve the device you are sitting at, and attach."
+    >
+      <ol class="grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+        {
+          steps.map((step, i) => (
+            <li class="border-t border-border pt-6">
+              <StepGlyph name={step.glyph} class="h-40 w-auto" />
+              <p class="text-eyebrow mt-5 text-primary">
+                Step {String(i + 1).padStart(2, "0")}
+              </p>
+              <h3 class="text-h4 mt-3 text-balance">{step.title}</h3>
+              <p class="text-body-sm mt-3 text-muted-foreground">{step.body}</p>
+            </li>
+          ))
+        }
+      </ol>
+    </Section>
 
-		<!-- Header overlays the full width of the split -->
-		<div class="fixed inset-x-0 top-0 z-[60]">
-			<SiteHeader client:load />
-		</div>
-	</div>
+    <Section
+      id="environments"
+      index="02"
+      eyebrow="Environments"
+      title="A machine we run, or one you already have."
+      lead="Both are environments: the same terminal, the same image paste, the same previews. What differs is who owns the hardware and who is responsible for its shape."
+    >
+      <div class="grid gap-x-10 gap-y-12 lg:grid-cols-2">
+        {
+          environments.map((env) => (
+            <article class="border-t border-border pt-8">
+              <p class="text-eyebrow text-primary">{env.label}</p>
+              <h3 class="text-h3 mt-4 max-w-[20ch] text-balance">{env.title}</h3>
+              <p class="text-body mt-4 max-w-[52ch] text-muted-foreground">{env.body}</p>
+              <EnvironmentScene variant={env.variant} class="mt-8 w-full max-w-[26rem]" />
+              <ul class="mt-8 divide-y divide-border border-t border-border">
+                {env.points.map((point) => (
+                  <li class="text-body-sm flex gap-3 py-3 text-muted-foreground">
+                    <span
+                      class="mt-[0.45rem] size-1.5 shrink-0 bg-primary"
+                      aria-hidden="true"
+                    />
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))
+        }
+      </div>
+    </Section>
 
-	<!-- Agent logo carousel below the hero -->
-	<section class="border-t border-border bg-background pt-10 pb-16 lg:pt-12 lg:pb-20">
-		<div class="mb-12 px-6 lg:mb-14">
-			<SectionIntro
-				client:visible
-				title="Bring your own agents"
-				description="Run Claude Code, Codex, OpenCode, Cursor, or your own, on the credentials you already pay for. No token resale."
-			/>
-		</div>
-		<AgentLogos client:visible />
-	</section>
+    <Section
+      id="terminal"
+      index="03"
+      eyebrow="Terminal"
+      title="One durable session, not a fresh shell every time."
+      lead="Every environment has a durable default session and can have named ones. A session keeps its identity, working directory, dimensions, process state, and a bounded history."
+    >
+      <div class="grid gap-10 lg:grid-cols-12 lg:gap-10">
+        <div class="lg:col-span-7">
+          <TerminalBlock />
+        </div>
+        <ul class="lg:col-span-5">
+          {
+            terminalFacts.map((fact) => (
+              <li class="border-t border-border py-5 first:border-t-0 first:pt-0 lg:first:border-t lg:first:pt-5">
+                <h3 class="text-h4">{fact.title}</h3>
+                <p class="text-body-sm mt-2 text-muted-foreground">{fact.body}</p>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </Section>
 
-	<HowItWorks client:visible />
+    <Section
+      id="previews"
+      index="04"
+      eyebrow="Previews"
+      title="Public previews, described as public."
+      lead="When the agent serves an application on a local port, Paperboat registers a public HTTPS and WebSocket URL and hands you that instead of a localhost address."
+    >
+      <div class="grid gap-10 lg:grid-cols-12">
+        <div class="lg:col-span-4">
+          <PreviewScene class="w-full max-w-[24rem]" />
+        </div>
 
-	<TerminalDemo client:visible />
+        <div class="border-t border-border pt-6 lg:col-span-4">
+          <h3 class="text-h4">What the URL gives you</h3>
+          <ul class="mt-4 space-y-3">
+            {
+              [
+                "HTTPS and WSS in front of local HTTP and WebSocket applications, so a browser and a websocket client both work.",
+                "Safety headers on preview responses: no-index, no-referrer, and content-type protection.",
+                "The same flow on a hosted project and on your own machine.",
+              ].map((point) => (
+                <li class="text-body-sm flex gap-3 text-muted-foreground">
+                  <span
+                    class="mt-[0.45rem] size-1.5 shrink-0 bg-primary"
+                    aria-hidden="true"
+                  />
+                  <span>{point}</span>
+                </li>
+              ))
+            }
+          </ul>
+        </div>
 
-	<UseCases client:visible />
+        <div class="border-t-2 border-warning pt-6 lg:col-span-4">
+          <div class="flex items-center gap-2.5">
+            <span class="size-2 shrink-0 bg-warning" aria-hidden="true"></span>
+            <h3 class="text-h4">What it does not give you</h3>
+          </div>
+          <p class="text-body mt-4 max-w-[46ch] text-pretty">
+            There is no password, IP allowlist, or user gate on previews in the
+            first release. Anyone with the URL can open the application.
+          </p>
+          <p class="text-body-sm mt-4 max-w-[46ch] text-muted-foreground">
+            Treat a preview link like a public deployment: share it when the
+            application is safe to share, and stop the preview when it is not.
+          </p>
+        </div>
+      </div>
+    </Section>
 
-	<Architecture client:visible />
+    <Section
+      id="configuration"
+      index="05"
+      eyebrow="Configuration"
+      title="Your setup follows you, only when you say so."
+      lead="Config repositories are private repositories you connect once and assign where you want them. On your own machine, assignment is necessary but never sufficient."
+    >
+      <div class="grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          configPoints.map((point) => (
+            <div class="border-t border-border pt-6">
+              <h3 class="text-h4 text-balance">{point.title}</h3>
+              <p class="text-body-sm mt-3 text-muted-foreground">{point.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </Section>
 
-	<FeatureSplits client:visible />
+    <Section
+      id="lifecycle"
+      index="06"
+      eyebrow="Lifecycle and billing"
+      title="State you can predict, and a bill that follows it."
+      lead="Machine operations are desired state reconciled against reality, retried idempotently. Nothing about running cost or capacity is hidden behind a friendly word."
+    >
+      <div class="grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          lifecyclePoints.map((point) => (
+            <div class="border-t border-border pt-6">
+              <h3 class="text-h4 text-balance">{point.title}</h3>
+              <p class="text-body-sm mt-3 text-muted-foreground">{point.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </Section>
 
-	<PlatformGrid client:visible />
+    <Section
+      id="faq"
+      index="07"
+      eyebrow="Questions"
+      title="The things a skeptical developer asks first."
+    >
+      <div class="border-t border-border">
+        {
+          faqs.map((faq) => (
+            <details class="group border-b border-border">
+              <summary class="flex cursor-pointer list-none items-baseline gap-4 py-5 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+                <span class="text-h4 flex-1 text-balance">{faq.q}</span>
+                <span
+                  class="mt-1 font-mono text-lg leading-none text-primary transition-transform group-open:rotate-45"
+                  aria-hidden="true"
+                >
+                  +
+                </span>
+              </summary>
+              <p class="text-body max-w-[68ch] pb-6 text-muted-foreground">{faq.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </Section>
 
-	<Faq client:visible />
+    <section class="border-t border-border px-6 py-16 sm:px-10 lg:py-24">
+      <div class="grid items-end gap-10 lg:grid-cols-12">
+        <div class="lg:col-span-8">
+          <p class="text-eyebrow text-primary">Get started</p>
+          <h2 class="text-h2 mt-5 max-w-[18ch] text-balance">
+            Give your agents a machine that stays up.
+          </h2>
+          <p class="text-lead mt-6 max-w-[52ch] text-pretty text-muted-foreground">
+            Create a hosted project or enroll the machine under your desk. Either
+            way, the next thing you type is pb.
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 lg:col-span-4 lg:justify-end">
+          <a
+            href={SITE.dashboard}
+            class="inline-flex h-11 items-center rounded-md bg-primary px-5 font-sans text-sm font-medium text-primary-foreground transition-colors outline-none hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            Open the dashboard
+          </a>
+          <a
+            href="#how"
+            class="inline-flex h-11 items-center rounded-md border border-border px-5 font-sans text-sm font-medium transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            See how it works
+          </a>
+        </div>
+      </div>
+    </section>
 
-	<FinalCta client:visible />
-
-	<SiteFooter client:visible />
+    <SiteFooter />
+  </main>
 </Layout>

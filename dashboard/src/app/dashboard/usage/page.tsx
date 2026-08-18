@@ -57,7 +57,6 @@ export default function UsagePage() {
   return (
     <>
       <PageHeader
-        eyebrow="Observability"
         title="Usage"
         description="Your credit balance and storage allocation across the platform."
       />
@@ -67,7 +66,7 @@ export default function UsagePage() {
           <Spinner className="size-6 text-muted-foreground" />
         </div>
       ) : error || !data ? (
-        <Empty className="min-h-[16rem] border">
+        <Empty className="min-h-[16rem] rounded-2xl border">
           <EmptyHeader>
             <EmptyTitle className="font-heading">Couldn&apos;t load usage</EmptyTitle>
             <EmptyDescription>

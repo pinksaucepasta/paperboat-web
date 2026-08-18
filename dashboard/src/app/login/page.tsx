@@ -86,9 +86,7 @@ export default async function LoginPage() {
       {/* Sign-in column */}
       <div className="flex flex-col px-6 py-8 lg:px-12">
         <header className="flex items-center gap-2">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <PaperboatMark className="size-5" />
-          </span>
+          <PaperboatMark className="h-7 w-auto shrink-0 text-primary" />
           <span className="font-heading text-base font-semibold tracking-tight">
             Paperboat
           </span>

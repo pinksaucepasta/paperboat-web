@@ -83,9 +83,10 @@ export type ChartContextValue = {
   setCursorX: (px: number) => void
   isMouseInChart: boolean
   setMouseInChart: (over: boolean) => void
-  hovered: boolean // parent-driven hover (e.g. the whole card) — lifts the fill
+  hovered: boolean // parent-driven hover (e.g. the whole card)
   bloom: BloomInput // glow on the dither canvas
   bloomOnHover: boolean // only bloom while hovered
+  hoverLift: boolean // brighten/thicken the dither fill while hovered
 
   // Series register themselves so the canvas knows what (and how) to paint.
   seriesSpecs: Record<string, SeriesSpec>
@@ -191,6 +192,7 @@ export function useChartController({
   hovered = false,
   bloom = "off",
   bloomOnHover = false,
+  hoverLift = false,
   defaultSelectedDataKey = null,
   onSelectionChange,
 }: {
@@ -207,6 +209,7 @@ export function useChartController({
   hovered?: boolean
   bloom?: BloomInput
   bloomOnHover?: boolean
+  hoverLift?: boolean
   defaultSelectedDataKey?: string | null
   onSelectionChange?: (key: string | null) => void
 }): ChartContextValue {
@@ -452,6 +455,7 @@ export function useChartController({
       hovered,
       bloom,
       bloomOnHover,
+      hoverLift,
       seriesSpecs,
       registerSeries,
       unregisterSeries,
@@ -495,6 +499,7 @@ export function useChartController({
       hovered,
       bloom,
       bloomOnHover,
+      hoverLift,
       seriesSpecs,
       registerSeries,
       unregisterSeries,

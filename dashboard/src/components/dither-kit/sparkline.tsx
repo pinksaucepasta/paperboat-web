@@ -14,8 +14,11 @@ export type SparklineProps = {
   variant?: AreaVariant
   /** Controlled crosshair position (e.g. a committed point). */
   markerIndex?: number | null
-  /** Parent-driven hover (e.g. the whole card/row) — lifts the fill. */
+  /** Parent-driven hover (e.g. the whole card/row). Lifts the fill only
+   * when `hoverLift` is also set. */
   hovered?: boolean
+  /** Brighten the fill while hovered. Off by default. */
+  hoverLift?: boolean
   /** Glow on the dither fill. */
   bloom?: BloomInput
   /** Only bloom while hovered. */
@@ -28,7 +31,7 @@ export type SparklineProps = {
 /**
  * Thin wrapper over {@link AreaChart} for the decorative-sparkline case: a
  * single `number[]` series, no axes/grid/tooltip, no scrub crosshair (unless a
- * `markerIndex` is supplied). Keeps the hover brightness lift.
+ * `markerIndex` is supplied).
  */
 export function Sparkline({
   data,
@@ -36,6 +39,7 @@ export function Sparkline({
   variant = "gradient",
   markerIndex = null,
   hovered = false,
+  hoverLift = false,
   bloom = "off",
   bloomOnHover = false,
   animate = false,
@@ -55,6 +59,7 @@ export function Sparkline({
       animate={animate}
       markerIndex={markerIndex}
       hovered={hovered}
+      hoverLift={hoverLift}
       bloom={bloom}
       bloomOnHover={bloomOnHover}
       margins={{ top: 0, right: 0, bottom: 0, left: 0 }}

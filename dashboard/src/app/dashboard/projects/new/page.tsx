@@ -178,7 +178,6 @@ export default function NewProjectPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Workspace"
         title="New project"
         description="Clone a repo onto a cloud machine and run your agents there."
         actions={

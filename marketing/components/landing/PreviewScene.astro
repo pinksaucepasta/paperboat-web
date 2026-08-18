@@ -1,0 +1,84 @@
+---
+/**
+ * The preview, drawn as what it actually is: one panel on the plinth and three
+ * arrivals reaching it from outside. Nothing in the drawing gates the routes,
+ * because nothing in the first release gates the URL.
+ */
+import { box, gridLines, ink, knockout, plane, poly } from "@/lib/iso";
+import type { Vec3 } from "@/lib/iso";
+
+interface Props {
+  class?: string;
+}
+const { class: className } = Astro.props;
+
+const O: [number, number] = [120, 82];
+const GROUND = { x0: -70, x1: 70, y0: -55, y1: 55 };
+const CUT = "fill:var(--background)";
+
+const ground = plane(GROUND, O);
+const grid = gridLines(GROUND, 20, O);
+
+const foot = box([-10, -36, 0], [18, 72, 4], O);
+const panel = box([-6, -32, 4], [7, 64, 42], O);
+/** The panel's screen face, facing the arrivals. */
+const screen = (u: number, v: number): Vec3 => [1, -32 + 64 * u, 4 + 42 * v];
+const urlBar = poly(
+  [screen(0.09, 0.87), screen(0.91, 0.87), screen(0.91, 0.72), screen(0.09, 0.72)],
+  O,
+);
+const screenBody = [
+  [0.09, 0.7, 0.6],
+  [0.09, 0.88, 0.45],
+  [0.09, 0.56, 0.3],
+].map(([u0, u1, v]) =>
+  poly([screen(u0, v), screen(u1, v), screen(u1, v - 0.08), screen(u0, v - 0.08)], O),
+);
+
+/** Three arrivals, each on its own route. None of them is asked for anything. */
+const arrivals = [-26, -2, 22].map((y) => ({
+  cube: box([38, y, 0], [14, 14, 14], O),
+  route: poly([[4, y + 7, 1], [38, y + 7, 1]], O),
+}));
+---
+
+<svg
+  viewBox="0 0 240 164"
+  aria-hidden="true"
+  focusable="false"
+  fill="none"
+  stroke-linejoin="round"
+  class={className}
+>
+  <g style="stroke:var(--primary)" vector-effect="non-scaling-stroke">
+    <polygon points={ground} fill={ink(1)} stroke="none" opacity="0.45" />
+    <g stroke-width="0.5" opacity="0.2">
+      {grid.map((l) => <line {...l} />)}
+    </g>
+    <polygon points={ground} stroke-width="1" opacity="0.4" />
+
+    <g stroke-width="1.25" stroke-dasharray="4 4">
+      {arrivals.map((a) => <polyline points={a.route} />)}
+    </g>
+
+    <g stroke-width="1">
+      <polygon points={foot.left} fill={ink(6)} />
+      <polygon points={foot.right} fill={ink(10)} />
+      <polygon points={panel.top} fill={ink(2)} />
+      <polygon points={panel.left} fill={ink(6)} />
+      <polygon points={panel.right} fill={knockout(2)} />
+      <polygon points={urlBar} style={CUT} stroke="none" />
+      {screenBody.map((r) => <polygon points={r} style={CUT} stroke="none" opacity="0.7" />)}
+
+      {
+        arrivals.map((a) => (
+          <g>
+            <polygon points={a.cube.top} fill={ink(2)} />
+            <polygon points={a.cube.left} fill={ink(6)} />
+            <polygon points={a.cube.right} fill={ink(12)} />
+          </g>
+        ))
+      }
+    </g>
+  </g>
+</svg>

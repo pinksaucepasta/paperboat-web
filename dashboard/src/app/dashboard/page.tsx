@@ -50,7 +50,6 @@ export default function OverviewPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Console"
         title="Overview"
         description="Your cloud projects, credits, and storage at a glance."
         actions={

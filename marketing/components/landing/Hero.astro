@@ -1,0 +1,71 @@
+---
+import HeroScene from "@/components/landing/HeroScene.astro";
+import InstallCommand from "@/components/landing/InstallCommand.astro";
+import { SITE } from "@/lib/site";
+
+/** The three things in the drawing, named in the product's own vocabulary. */
+const parts = [
+  {
+    label: "Environment",
+    body: "A hosted machine with its project volume, or a macOS/Linux machine you already own.",
+  },
+  {
+    label: "Your machine",
+    body: "pb attaches from the laptop you work on, and reattaches after it sleeps.",
+  },
+  {
+    label: "Preview",
+    body: "A public HTTPS URL for the application the agent is serving.",
+  },
+];
+---
+
+<section id="top" class="scroll-mt-14 px-6 pt-16 pb-14 sm:px-10 lg:pt-24 lg:pb-20">
+  <div class="grid items-center gap-14 lg:grid-cols-12 lg:gap-10">
+    <div class="lg:col-span-6">
+      <p class="text-eyebrow text-primary">Cloud agents platform</p>
+
+      <h1 class="text-h1 mt-6 max-w-[16ch] text-balance">
+        Your agents keep working when your laptop doesn't.
+      </h1>
+
+      <p class="text-lead mt-7 max-w-[54ch] text-pretty text-muted-foreground">
+        Paperboat runs coding agents on a machine that stays up — hosted by us, or
+        one you already own — and gives you one durable terminal to reach them
+        from anywhere.
+      </p>
+
+      <div class="mt-9 flex flex-wrap items-center gap-3">
+        <a
+          href={SITE.dashboard}
+          class="inline-flex h-11 items-center rounded-md bg-primary px-5 font-sans text-sm font-medium text-primary-foreground transition-colors outline-none hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          Get started
+        </a>
+        <a
+          href="#how"
+          class="inline-flex h-11 items-center rounded-md border border-border px-5 font-sans text-sm font-medium transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          See how it works
+        </a>
+      </div>
+
+      <InstallCommand />
+    </div>
+
+    <div class="lg:col-span-6">
+      <HeroScene />
+
+      <ul class="mt-8 grid gap-6 border-t border-border pt-6 sm:grid-cols-3">
+        {
+          parts.map((part) => (
+            <li>
+              <p class="text-eyebrow text-foreground">{part.label}</p>
+              <p class="text-body-sm mt-2 text-muted-foreground">{part.body}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </div>
+</section>

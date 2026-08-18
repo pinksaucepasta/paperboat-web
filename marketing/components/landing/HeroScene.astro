@@ -1,0 +1,206 @@
+---
+/**
+ * The hero drawing: one workspace seen from above, drawn on the shared
+ * isometric lattice and shaded with the ordered-dither ramp.
+ *
+ * It states the product model literally — the environment that holds the agent,
+ * the laptop you run `pb` on, and the panel serving the public preview — with
+ * the routes between them drawn as paths across the plane. Geometry resolves at
+ * build time; the browser receives static polygons and no script.
+ *
+ * Shading is consistent across every scene on the site: top faces take the
+ * lightest step of the ramp, screen-left faces a mid step, screen-right faces
+ * the darkest. Detail that sits on a solid indigo face is cut out in the page
+ * background color so it reads at any size.
+ */
+import {
+  box,
+  gridLines,
+  ink,
+  knockout,
+  laptop,
+  paperBoat,
+  plane,
+  poly,
+  project,
+} from "@/lib/iso";
+import type { Vec3 } from "@/lib/iso";
+
+const O: [number, number] = [187, 132];
+const GROUND = { x0: -95, x1: 95, y0: -72, y1: 95 };
+/** Cut-out detail: page canvas punched through a dark face. */
+const CUT = "fill:var(--background)";
+
+// --- The environment: a machine standing on its project volume --------------
+const volume = box([-66, -58, 0], [46, 46, 9], O);
+const machine = box([-66, -58, 9], [46, 46, 31], O);
+
+// A vent grille on the machine's dark face — enough detail to read as a running
+// box rather than a solid cube, and distinct from the screens elsewhere in the
+// drawing, which use full-width lines.
+const vents = [34, 29, 24].flatMap((z) =>
+  [0, 1, 2, 3].map((col) => {
+    const y = -50 + col * 8;
+    return poly(
+      [
+        [-20, y, z],
+        [-20, y + 5, z],
+        [-20, y + 5, z - 2.5],
+        [-20, y, z - 2.5],
+      ],
+      O,
+    );
+  }),
+);
+
+// --- Your machine: an open laptop, front-left --------------------------------
+const { base: laptopBase, lid, lidFace } = laptop([-30, 52, 0], [60, 42, 5], O);
+/** A prompt and two lines of output, cut out of the lid. */
+const lidLines = [
+  [0.14, 0.2, 0.76],
+  [0.26, 0.82, 0.76],
+  [0.14, 0.62, 0.56],
+  [0.14, 0.74, 0.38],
+].map(([u0, u1, v]) =>
+  poly([lid(u0, v), lid(u1, v), lid(u1, v - 0.09), lid(u0, v - 0.09)], O),
+);
+const keyboard = poly(
+  [
+    [-24, 58, 5],
+    [24, 58, 5],
+    [24, 88, 5],
+    [-24, 88, 5],
+  ],
+  O,
+);
+
+// --- Public preview: a standing panel on a foot, front-right ----------------
+const previewFoot = box([70, -40, 0], [18, 72, 4], O);
+const previewPanel = box([74, -36, 4], [6, 64, 44], O);
+/** The panel's screen face, parameterised so the chrome can sit on it. */
+const screen = (u: number, v: number): Vec3 => [80, -36 + 64 * u, 4 + 44 * v];
+const urlBar = poly(
+  [screen(0.1, 0.88), screen(0.9, 0.88), screen(0.9, 0.75), screen(0.1, 0.75)],
+  O,
+);
+const screenBody = [
+  [0.1, 0.68, 0.62],
+  [0.1, 0.86, 0.47],
+  [0.1, 0.54, 0.32],
+].map(([u0, u1, v]) =>
+  poly([screen(u0, v), screen(u1, v), screen(u1, v - 0.08), screen(u0, v - 0.08)], O),
+);
+
+// --- The paper boat, adrift on the plane between them -----------------------
+// `paperBoat` works from the lattice origin, so the scene origin absorbs the
+// boat's berth: projection is linear, so shifting the origin by the projection
+// of the berth is the same as translating the fold along the lattice.
+const BERTH: Vec3 = [34, 30, 0];
+const boat = paperBoat(1.5, [
+  O[0] + project(BERTH)[0],
+  O[1] + project(BERTH)[1],
+]);
+
+// --- Routes: your machine → environment → preview ---------------------------
+const routeDevice = poly([[0, 50, 1], [0, -35, 1], [-20, -35, 1]], O);
+const routePreview = poly([[-43, -12, 1], [-43, 25, 1], [79, 25, 1]], O);
+const nodes: Vec3[] = [
+  [0, 50, 1],
+  [-20, -35, 1],
+  [-43, -12, 1],
+];
+
+const ground = plane(GROUND, O);
+const grid = gridLines(GROUND, 17, O);
+---
+
+<!-- The viewBox is cropped to the drawing itself rather than to the lattice it
+     was laid out on: the geometry only ever occupied the middle 309×197 of a
+     353×249 box, and the dead margin was scaling the whole scene down by an
+     eighth for nothing. Three units of air keep the ground plane's corners and
+     the sail's peak off the edge. -->
+<svg
+  viewBox="19 27 316 203"
+  role="img"
+  aria-labelledby="hero-scene-title"
+  class="w-full"
+  fill="none"
+  stroke-linejoin="round"
+>
+  <title id="hero-scene-title">
+    Isometric drawing of a Paperboat workspace: an environment block linked by
+    two routes to the laptop running pb and to the panel serving a public
+    preview, with a paper boat between them.
+  </title>
+
+  <g style="stroke:var(--primary)" vector-effect="non-scaling-stroke">
+    <!-- Ground plane: the faintest step of the ramp, ruled with the lattice. -->
+    <polygon points={ground} fill={ink(1)} stroke="none" opacity="0.45" />
+    <g stroke-width="0.5" opacity="0.22">
+      {grid.map((l) => <line {...l} />)}
+    </g>
+    <polygon points={ground} stroke-width="1" opacity="0.45" />
+
+    <!-- Routes across the plane. Dashed: something travelled, not a pipe. -->
+    <g stroke-width="1.25" stroke-dasharray="4 4">
+      <polyline points={routeDevice} />
+      <polyline points={routePreview} />
+    </g>
+    {
+      nodes.map((n) => (
+        <circle
+          cx={project(n, O)[0]}
+          cy={project(n, O)[1]}
+          r="2.5"
+          style="fill:var(--primary)"
+          stroke="none"
+        />
+      ))
+    }
+
+    <!-- The environment -->
+    <g stroke-width="1">
+      <polygon points={volume.left} fill={ink(6)} />
+      <polygon points={volume.right} fill={ink(10)} />
+      <polygon points={machine.top} fill={ink(1)} />
+      <polygon points={machine.left} fill={ink(4)} />
+      <polygon points={machine.right} fill={knockout(2)} />
+      {vents.map((v) => <polygon points={v} style={CUT} stroke="none" />)}
+    </g>
+
+    <!-- Paper boat: one folded sheet, drawn back to front. -->
+    <g stroke-width="1">
+      <polygon points={boat.sternInner} fill={ink(6)} />
+      <polygon points={boat.troughAft} fill={ink(4)} />
+      <polygon points={boat.troughFore} fill={ink(8)} />
+      <polygon points={boat.floor} fill={ink(2)} />
+      {/* Between the floor and the near wall: the sail stands on the centreline,
+          so the near flank has to close over its foot. */}
+      <polygon points={boat.sail} fill={ink(6)} />
+      <polygon points={boat.flankAft} fill={ink(10)} />
+      <polygon points={boat.flankFore} fill={ink(14)} />
+      <polygon points={boat.bowOuter} fill={knockout(4)} />
+    </g>
+
+    <!-- Public preview -->
+    <g stroke-width="1">
+      <polygon points={previewFoot.left} fill={ink(6)} />
+      <polygon points={previewFoot.right} fill={ink(10)} />
+      <polygon points={previewPanel.top} fill={ink(2)} />
+      <polygon points={previewPanel.left} fill={ink(6)} />
+      <polygon points={previewPanel.right} fill={knockout(2)} />
+      <polygon points={urlBar} style={CUT} stroke="none" />
+      {screenBody.map((r) => <polygon points={r} style={CUT} stroke="none" opacity="0.75" />)}
+    </g>
+
+    <!-- Your machine -->
+    <g stroke-width="1">
+      <polygon points={laptopBase.top} fill={ink(2)} />
+      <polygon points={laptopBase.left} fill={ink(6)} />
+      <polygon points={laptopBase.right} fill={ink(10)} />
+      <polygon points={keyboard} fill={ink(4)} stroke-width="0.75" />
+      <polygon points={lidFace} fill={knockout(2)} />
+      {lidLines.map((r) => <polygon points={r} style={CUT} stroke="none" />)}
+    </g>
+  </g>
+</svg>

@@ -50,7 +50,6 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Account"
         title="Settings"
         description="Your profile and connected accounts."
       />
@@ -135,10 +134,7 @@ function GitHubCard({
         </div>
         {data?.connected ? (
           <CardAction>
-            <Badge
-              variant="success"
-              className="gap-1.5 text-emerald-600 dark:text-emerald-400"
-            >
+            <Badge variant="success" className="gap-1.5">
               <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5" />
               Connected
             </Badge>
@@ -185,7 +181,7 @@ function GitHubCard({
               </div>
             )}
             {missingScopes.length > 0 ? (
-              <p className="text-xs text-amber-600 dark:text-amber-400">
+              <p className="text-xs text-warning-foreground">
                 Missing scopes: {missingScopes.join(", ")}. Reconnect to grant them.
               </p>
             ) : null}

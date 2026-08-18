@@ -21,19 +21,19 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  const user = {
+    email: me.email,
+    firstName: me.display_name || null,
+    lastName: null,
+    profilePictureUrl: null,
+  };
+
   return (
     <SidebarProvider className="bg-sidebar">
       <TrialPrompt userId={me.id} />
-      <AppSidebar />
-      <SidebarInset className="min-w-0 overflow-clip md:m-2 md:ms-0 md:rounded-xl md:shadow-sm/5">
-        <TopNav
-          user={{
-            email: me.email,
-            firstName: me.display_name || null,
-            lastName: null,
-            profilePictureUrl: null,
-          }}
-        />
+      <AppSidebar user={user} />
+      <SidebarInset className="min-w-0 overflow-clip md:m-2 md:ms-0 md:rounded-xl md:border md:border-border md:shadow-sm/5">
+        <TopNav />
         <main className="flex flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
           {children}
         </main>

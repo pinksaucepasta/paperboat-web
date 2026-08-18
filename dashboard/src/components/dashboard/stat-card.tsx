@@ -20,7 +20,7 @@ export function StatCard({
 }) {
   const trendColor =
     trend === "up"
-      ? "text-emerald-600 dark:text-emerald-400"
+      ? "text-success-foreground"
       : trend === "down"
         ? "text-destructive"
         : "text-muted-foreground";
@@ -29,7 +29,7 @@ export function StatCard({
     <Card className="gap-0 py-0">
       <CardContent className="flex flex-col gap-3 p-5">
         <div className="flex items-center justify-between">
-          <span className="font-mono text-xs uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="text-eyebrow text-muted-foreground">
             {label}
           </span>
           <span className="flex size-8 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -37,7 +37,7 @@ export function StatCard({
           </span>
         </div>
         <div className="flex items-end justify-between gap-2">
-          <span className="font-heading text-3xl font-semibold tracking-tight tabular-nums">
+          <span className="text-metric">
             {value}
           </span>
           {delta ? (

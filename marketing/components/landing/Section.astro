@@ -1,0 +1,53 @@
+---
+/**
+ * The page's one section shell.
+ *
+ * Every section is a ruled band on a technical sheet: a numbered gutter on the
+ * left carrying the index and the system label, the heading and its lead on the
+ * right, and the section's own content below. Keeping this in one component is
+ * what makes the rhythm of the page identical from top to bottom.
+ */
+interface Props {
+  id: string;
+  index: string;
+  eyebrow: string;
+  title: string;
+  lead?: string;
+  /** Drops the bottom padding when the section ends in a full-bleed element. */
+  flush?: boolean;
+}
+
+const { id, index, eyebrow, title, lead, flush = false } = Astro.props;
+---
+
+<section
+  id={id}
+  class:list={[
+    "scroll-mt-14 border-t border-border px-6 pt-14 sm:px-10 lg:pt-20",
+    flush ? "pb-0" : "pb-14 lg:pb-20",
+  ]}
+>
+  <div class="grid gap-8 lg:grid-cols-12 lg:gap-10">
+    <div class="lg:col-span-3">
+      <div class="flex items-baseline gap-3 lg:flex-col lg:items-start lg:gap-2">
+        <span class="font-pixel-grid text-2xl leading-none text-primary" aria-hidden="true">
+          {index}
+        </span>
+        <span class="text-eyebrow text-muted-foreground">{eyebrow}</span>
+      </div>
+    </div>
+
+    <div class="lg:col-span-9">
+      <h2 class="text-h2 max-w-[22ch] text-balance">{title}</h2>
+      {
+        lead && (
+          <p class="text-lead mt-5 max-w-[62ch] text-pretty text-muted-foreground">{lead}</p>
+        )
+      }
+    </div>
+  </div>
+
+  <div class="mt-10 lg:mt-14">
+    <slot />
+  </div>
+</section>

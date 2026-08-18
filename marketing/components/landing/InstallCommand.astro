@@ -1,0 +1,79 @@
+---
+/**
+ * The install line: one command, with a button that copies it.
+ *
+ * The `$` is decorative and sits outside the copied string, so what lands on the
+ * clipboard is exactly what a shell should receive. The command stays selectable
+ * text rather than a control, so it can still be copied by hand.
+ *
+ * The script is the page's only interaction, and it degrades in both directions:
+ * with no JavaScript the button never renders, and when the Clipboard API is
+ * unavailable or refused — an insecure origin, a denied permission — it selects
+ * the command and points at the keyboard shortcut instead of failing silently.
+ */
+import { SITE } from "@/lib/site";
+
+const command = `curl -fsSL ${SITE.install} | sh`;
+---
+
+<div
+  data-install
+  class="mt-9 flex max-w-[46ch] items-center gap-2 rounded-md border border-border bg-muted/40 py-2 ps-4 pe-2"
+>
+  <code class="min-w-0 flex-1 overflow-x-auto font-mono text-sm whitespace-nowrap">
+    <span class="select-none text-muted-foreground" aria-hidden="true">$ </span><span
+      data-command-text>{command}</span
+    >
+  </code>
+
+  <button
+    type="button"
+    data-copy
+    data-command={command}
+    class="hidden h-8 shrink-0 items-center rounded-sm px-2.5 font-sans text-sm font-medium text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+  >
+    <span data-copy-label>Copy</span>
+  </button>
+
+  <!-- Announces the result to screen readers without moving focus. -->
+  <span data-copy-status class="sr-only" role="status" aria-live="polite"></span>
+</div>
+
+<script>
+  const root = document.querySelector<HTMLElement>("[data-install]");
+  const button = root?.querySelector<HTMLButtonElement>("[data-copy]");
+  const label = root?.querySelector<HTMLElement>("[data-copy-label]");
+  const status = root?.querySelector<HTMLElement>("[data-copy-status]");
+  const text = root?.querySelector<HTMLElement>("[data-command-text]");
+
+  if (root && button && label && status && text) {
+    // Revealed only once the handler is attached, so the button is never inert.
+    button.classList.replace("hidden", "inline-flex");
+
+    let reset: ReturnType<typeof setTimeout>;
+    const say = (message: string) => {
+      label.textContent = message;
+      status.textContent = message;
+      clearTimeout(reset);
+      reset = setTimeout(() => {
+        label.textContent = "Copy";
+        status.textContent = "";
+      }, 2000);
+    };
+
+    button.addEventListener("click", async () => {
+      const command = button.dataset.command ?? text.textContent ?? "";
+      try {
+        await navigator.clipboard.writeText(command);
+        say("Copied");
+      } catch {
+        const range = document.createRange();
+        range.selectNodeContents(text);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        say("Press ⌘C");
+      }
+    });
+  }
+</script>

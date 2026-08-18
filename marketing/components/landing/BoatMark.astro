@@ -1,0 +1,33 @@
+---
+/**
+ * The wordmark's boat: a sailed pixel boat on a 12-unit grid.
+ *
+ * The 27 squares of the source drawing are merged into their 7 horizontal runs;
+ * coordinates are untouched, so the sail keeps its half-cell offset against the
+ * hull. `crisp-edges` stops the browser anti-aliasing the steps back into a blur.
+ *
+ * The mark carries no plate of its own — it draws in `currentColor` on whatever
+ * it sits on, so callers set the colour and nothing needs rounding.
+ */
+interface Props {
+  class?: string;
+}
+const { class: className } = Astro.props;
+---
+
+<svg
+  viewBox="0 0 120 72"
+  fill="currentColor"
+  shape-rendering="crispEdges"
+  aria-hidden="true"
+  focusable="false"
+  class={className}
+>
+  <rect x="54" y="0" width="12" height="12" />
+  <rect x="42" y="12" width="36" height="12" />
+  <rect x="30" y="24" width="60" height="12" />
+  <rect x="0" y="36" width="24" height="12" />
+  <rect x="96" y="36" width="24" height="12" />
+  <rect x="12" y="48" width="96" height="12" />
+  <rect x="24" y="60" width="72" height="12" />
+</svg>

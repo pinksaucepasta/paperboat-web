@@ -1,0 +1,147 @@
+---
+/**
+ * The two environment types, drawn at the same scale on the same plinth so the
+ * comparison is visual before it is verbal: a hosted project is a machine we
+ * provision on a volume you sized, a BYOD machine is hardware you already have
+ * that dials out to us.
+ */
+import {
+  box,
+  gridLines,
+  ink,
+  knockout,
+  laptop,
+  plane,
+  poly,
+  project,
+} from "@/lib/iso";
+import type { Vec3 } from "@/lib/iso";
+
+interface Props {
+  variant: "hosted" | "byod";
+  class?: string;
+}
+const { variant, class: className } = Astro.props;
+
+const O: [number, number] = [120, 108];
+const GROUND = { x0: -60, x1: 60, y0: -50, y1: 60 };
+const CUT = "fill:var(--background)";
+
+const ground = plane(GROUND, O);
+const grid = gridLines(GROUND, 20, O);
+
+// --- Hosted: one managed machine, one project volume, storage from the pool --
+const volume = box([-46, -34, 0], [44, 44, 10], O);
+const machine = box([-46, -34, 10], [44, 44, 30], O);
+const vents = [32, 27, 22].flatMap((z) =>
+  [0, 1, 2].map((col) => {
+    const y = -28 + col * 12;
+    return poly(
+      [
+        [-2, y, z],
+        [-2, y + 8, z],
+        [-2, y + 8, z - 2.5],
+        [-2, y, z - 2.5],
+      ],
+      O,
+    );
+  }),
+);
+const storage = [0, 7, 14].map((z) => box([16, -18, z], [28, 28, 6], O));
+const hostedRoute = poly([[-24, 10, 1], [-24, 50, 1], [30, 50, 1]], O);
+
+// --- BYOD: your own hardware, connecting outbound ---------------------------
+const deskBox = box([10, -34, 0], [30, 30, 26], O);
+const deskVents = [20, 15].flatMap((z) =>
+  [0, 1].map((col) => {
+    const y = -28 + col * 12;
+    return poly(
+      [
+        [40, y, z],
+        [40, y + 8, z],
+        [40, y + 8, z - 2.5],
+        [40, y, z - 2.5],
+      ],
+      O,
+    );
+  }),
+);
+const { base: laptopBase, lid, lidFace } = laptop([-46, 8, 0], [52, 36, 5], O);
+const lidLines = [
+  [0.14, 0.28, 0.74],
+  [0.14, 0.66, 0.5],
+].map(([u0, u1, v]) =>
+  poly([lid(u0, v), lid(u1, v), lid(u1, v - 0.12), lid(u0, v - 0.12)], O),
+);
+/** Outbound only: the route leaves the plinth, nothing arrives at a port. */
+const byodRoute = poly([[25, -34, 1], [25, -46, 1], [-55, -46, 1]], O);
+const byodNode: Vec3 = [25, -34, 1];
+---
+
+<svg
+  viewBox="0 0 240 180"
+  aria-hidden="true"
+  focusable="false"
+  fill="none"
+  stroke-linejoin="round"
+  class={className}
+>
+  <g style="stroke:var(--primary)" vector-effect="non-scaling-stroke">
+    <polygon points={ground} fill={ink(1)} stroke="none" opacity="0.45" />
+    <g stroke-width="0.5" opacity="0.2">
+      {grid.map((l) => <line {...l} />)}
+    </g>
+    <polygon points={ground} stroke-width="1" opacity="0.4" />
+
+    {
+      variant === "hosted" && (
+        <g stroke-width="1">
+          <polyline points={hostedRoute} stroke-width="1.25" stroke-dasharray="4 4" />
+          <polygon points={volume.left} fill={ink(6)} />
+          <polygon points={volume.right} fill={ink(10)} />
+          <polygon points={machine.top} fill={ink(1)} />
+          <polygon points={machine.left} fill={ink(4)} />
+          <polygon points={machine.right} fill={knockout(2)} />
+          {vents.map((v) => (
+            <polygon points={v} style={CUT} stroke="none" />
+          ))}
+          {storage.map((slab) => (
+            <g>
+              <polygon points={slab.top} fill={ink(2)} />
+              <polygon points={slab.left} fill={ink(6)} />
+              <polygon points={slab.right} fill={ink(12)} />
+            </g>
+          ))}
+        </g>
+      )
+    }
+
+    {
+      variant === "byod" && (
+        <g stroke-width="1">
+          <polyline points={byodRoute} stroke-width="1.25" stroke-dasharray="4 4" />
+          <circle
+            cx={project(byodNode, O)[0]}
+            cy={project(byodNode, O)[1]}
+            r="2.5"
+            style="fill:var(--primary)"
+            stroke="none"
+          />
+          <polygon points={deskBox.top} fill={ink(1)} />
+          <polygon points={deskBox.left} fill={ink(4)} />
+          <polygon points={deskBox.right} fill={knockout(2)} />
+          {deskVents.map((v) => (
+            <polygon points={v} style={CUT} stroke="none" />
+          ))}
+          <polygon points={laptopBase.top} fill={ink(2)} />
+          <polygon points={laptopBase.left} fill={ink(6)} />
+          <polygon points={laptopBase.right} fill={ink(10)} />
+          <polygon points={lidFace} fill={knockout(2)} />
+          {lidLines.map((r) => (
+            <polygon points={r} style={CUT} stroke="none" />
+          ))}
+        </g>
+      )
+    }
+  </g>
+</svg>
