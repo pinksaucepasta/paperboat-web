@@ -151,3 +151,12 @@ export async function pbFetch<T>(path: string, opts: RequestOptions = {}): Promi
   const res = await fetch(BFF_BASE + path, init);
   return unwrap<T>(res);
 }
+
+/** Download an authenticated non-JSON response through the dashboard BFF. */
+export async function pbDownload(path: string): Promise<Blob> {
+  const res = await fetch(BFF_BASE + path, { method: "GET", credentials: "same-origin", cache: "no-store" });
+  if (!res.ok) {
+    await unwrap<never>(res);
+  }
+  return res.blob();
+}

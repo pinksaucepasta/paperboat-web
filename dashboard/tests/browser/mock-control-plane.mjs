@@ -35,9 +35,44 @@ let staleConsentMutation = false;
 let byod;
 let hosted;
 let previews;
+let enrollment;
+let machines;
 
 function reset() {
   staleConsentMutation = false;
+  machines = [{
+    id: "mch_browser_test",
+    environment_id: "env_browser_test",
+    display_name: "Studio machine",
+    platform: "linux",
+    architecture: "amd64",
+    workspace_root: "/home/sailor",
+    state: "online",
+    seat_state: "occupied",
+    online: true,
+    runtime_versions: {},
+    setup_roles: ["interactive"],
+    setup_mode: "receive",
+    capabilities: {
+      file_receive: { configured: true, observed: true },
+      preview_launch: { configured: false, observed: false },
+      terminal_host: { configured: false, observed: false },
+      codex_host: { configured: false, observed: false },
+      session_host: { configured: false, observed: false },
+      keep_awake: { configured: false, observed: false },
+    },
+    machine_kind: "personal",
+    public_identity_key: "test-key",
+    installation_generation: 1,
+    availability: {
+      schema: "paperboat.availability-policy/v1",
+      desired_mode: "allow_sleep",
+      desired_version: 0,
+      observed_version: 0,
+      status: "applied",
+      update_rollbacks: 0,
+    },
+  }];
   byod = {
     machine_id: "mch_byod",
     environment_id: "env_byod",
@@ -116,6 +151,7 @@ function reset() {
       owner_mode: "runtime",
     },
   ];
+  enrollment = undefined;
 }
 
 reset();
@@ -168,6 +204,57 @@ const server = createServer(async (request, response) => {
     return success(response, { trial_eligible: false });
   }
   if (path === "/v1/billing/plan-products") return success(response, []);
+  if (path === "/v1/machines" && request.method === "GET") return success(response, { items: machines });
+  if (path === "/v1/machines/mch_browser_test" && request.method === "PATCH") {
+    const input = await readJSON(request);
+    machines[0] = { ...machines[0], display_name: input.display_name };
+    return success(response, machines[0]);
+  }
+  if (path === "/v1/machines/overview" && request.method === "GET") {
+    return success(response, {
+      entitlement_state: "active",
+      seat_quantity: 2,
+      occupied_seats: 1,
+      available_seats: 1,
+      included_bytes: 0,
+      consumed_included_bytes: 0,
+      consumed_topup_bytes: 0,
+      paid_topup_remaining_bytes: 0,
+    });
+  }
+  if (path === "/v1/machines/update-summary" && request.method === "GET") return success(response, { items: [], counts: {} });
+  if (path === "/v1/machine-enrollments" && request.method === "POST") {
+    enrollment = {
+      id: "enr_browser_test",
+      operation_id: "op_browser_test",
+      state: "awaiting_bootstrap",
+      generation: 1,
+      expires_at: "2030-01-02T03:04:05Z",
+      created_at: "2030-01-01T03:04:05Z",
+      updated_at: "2030-01-01T03:04:05Z",
+    };
+    return success(response, {
+      ...enrollment,
+      bootstrap_command: "https://get.pprbt.dev/install",
+      token_download_path: `/v1/machine-enrollments/${enrollment.id}/bootstrap-token`,
+      server_url: "https://api.pprbt.dev",
+    }, 201);
+  }
+  if (path === "/v1/machine-enrollments/enr_browser_test/bootstrap-token" && request.method === "GET") {
+    const body = "bootstrap-token-browser-test\n";
+    response.writeHead(200, {
+      "content-type": "text/plain; charset=utf-8",
+      "content-disposition": 'attachment; filename="paperboat-enrollment-token.txt"',
+      "cache-control": "no-store, private",
+      "content-length": Buffer.byteLength(body),
+    });
+    response.end(body);
+    return;
+  }
+  if (path.startsWith("/v1/machine-enrollments/") && request.method === "GET") {
+    if (!enrollment || path !== `/v1/machine-enrollments/${enrollment.id}`) return failure(response, 404, "not_found", "Enrollment not found.");
+    return success(response, enrollment);
+  }
   if (path === "/v1/previews" && request.method === "GET") return success(response, previews);
   if (path.startsWith("/v1/previews/") && request.method === "DELETE") {
     const id = decodeURIComponent(path.slice("/v1/previews/".length));

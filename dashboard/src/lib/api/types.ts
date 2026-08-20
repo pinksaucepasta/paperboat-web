@@ -194,6 +194,8 @@ export interface MachineEnrollment {
 export interface MachineEnrollmentStart extends MachineEnrollment {
   bootstrap_token: string;
   bootstrap_command: string;
+  token_download_path: string;
+  server_url: string;
 }
 
 export type DeviceRequestState =

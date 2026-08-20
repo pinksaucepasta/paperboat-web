@@ -7,6 +7,7 @@ import {
   CloudServerIcon,
   Copy01Icon,
   Delete02Icon,
+  Edit02Icon,
   LinkSquare02Icon,
   RefreshIcon,
 } from "@hugeicons/core-free-icons";
@@ -28,14 +29,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { ApiError } from "@/lib/api/client";
 import {
-  approveMachine,
   cancelMachineEnrollment,
   deleteMachine,
-  denyMachine,
   disconnectMachine,
   decideMaintenanceApproval,
   getFleetUpdateSummary,
@@ -44,6 +53,7 @@ import {
   listMachines,
   listMaintenanceApprovals,
   retryMachineEnrollment,
+  renameMachine,
   setMachineAvailability,
   startMachineEnrollment,
 } from "@/lib/api/machines";
@@ -78,8 +88,9 @@ export default function MachinesPage() {
   const [enrollment, setEnrollment] = React.useState<MachineEnrollment | MachineEnrollmentStart>();
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState<string>();
-  const [code, setCode] = React.useState("");
   const [busy, setBusy] = React.useState<string>();
+  const [machineToRename, setMachineToRename] = React.useState<Machine>();
+  const [machineName, setMachineName] = React.useState("");
 
   const refresh = React.useCallback(async () => {
     setLoading(true);
@@ -123,7 +134,7 @@ export default function MachinesPage() {
     const timer = window.setInterval(() => {
       void getMachineEnrollment(enrollment.id)
         .then((next) => {
-          setEnrollment((current) => ({ ...current, ...next }));
+          setEnrollment((current) => current?.id === enrollment.id ? { ...current, ...next } : current);
           if (next.state === "ready") void refresh();
         })
         .catch((error) => toast.error("Enrollment status is unavailable.", { description: errorMessage(error, "Retry shortly.") }));
@@ -140,35 +151,6 @@ export default function MachinesPage() {
       toast.success("Enrollment started.");
     } catch (error) {
       toast.error("Couldn't start enrollment.", { description: errorMessage(error, "Try again.") });
-    } finally {
-      setBusy(undefined);
-    }
-  }
-
-  async function approve() {
-    setBusy("approve");
-    try {
-      await approveMachine(code.trim());
-      setCode("");
-      toast.success("User machine approved.");
-      if (enrollment) setEnrollment(await getMachineEnrollment(enrollment.id));
-      await refresh();
-    } catch (error) {
-      toast.error("Couldn't approve machine.", { description: errorMessage(error, "Check the pairing code and available seats.") });
-    } finally {
-      setBusy(undefined);
-    }
-  }
-
-  async function deny() {
-    setBusy("deny");
-    try {
-      await denyMachine(code.trim());
-      setCode("");
-      toast.success("Pairing denied.");
-      if (enrollment) setEnrollment(await getMachineEnrollment(enrollment.id));
-    } catch (error) {
-      toast.error("Couldn't deny pairing.", { description: errorMessage(error, "Check the pairing code and try again.") });
     } finally {
       setBusy(undefined);
     }
@@ -222,6 +204,25 @@ export default function MachinesPage() {
     }
   }
 
+  async function submitRename(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!machineToRename) return;
+    const displayName = machineName.trim();
+    if (!displayName || displayName === machineToRename.display_name) return;
+
+    setBusy(machineToRename.id + "rename");
+    try {
+      const updated = await renameMachine(machineToRename.id, displayName);
+      setItems((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setMachineToRename(undefined);
+      toast.success("Machine renamed.");
+    } catch (error) {
+      toast.error("Couldn't rename machine.", { description: errorMessage(error, "Check the name and try again.") });
+    } finally {
+      setBusy(undefined);
+    }
+  }
+
 	async function decideMaintenance(machineID: string, approval: MaintenanceApproval, decision: "approved" | "rejected") {
 		setBusy(`${machineID}:${approval.id}:${decision}`);
 		try {
@@ -244,7 +245,7 @@ export default function MachinesPage() {
       <PageHeader
         eyebrow="Workspace"
         title="Machines"
-        description="Manage macOS and Linux machines that keep their workspace on your hardware."
+        description="Manage native Windows, macOS, and Linux machines that keep their workspace on your hardware. Windows amd64 is stable; Windows arm64 is beta."
         actions={
           <Button disabled={busy === "start" || overview?.available_seats === 0} onClick={() => void startEnrollment()}>
             {busy === "start" ? <Spinner /> : <HugeiconsIcon icon={Add01Icon} />}
@@ -280,8 +281,8 @@ export default function MachinesPage() {
 		{!loading && !loadError && updates ? <UpdateFleetSummary summary={updates} /> : null}
 		{updateError ? <section role="status" className="flex items-center justify-between gap-3 border-y py-3 text-sm"><p className="text-muted-foreground">{updateError}</p><Button size="sm" variant="outline" onClick={() => void refresh()}><HugeiconsIcon icon={RefreshIcon} />Retry</Button></section> : null}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <section aria-label="Enrolled machines" className="grid content-start gap-4 md:grid-cols-2">
+      <div>
+        <section aria-label="Enrolled machines" className="grid content-start gap-4 md:grid-cols-2 xl:grid-cols-3">
           {!loading && !loadError && items.length === 0 ? (
             <div className="col-span-full flex min-h-56 flex-col items-center justify-center gap-3 border-y text-center">
               <HugeiconsIcon icon={CloudServerIcon} className="size-7 text-muted-foreground" />
@@ -292,7 +293,7 @@ export default function MachinesPage() {
             <Card key={machine.id} className="rounded-lg">
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
-                  <div><CardTitle className="font-heading text-base">{machine.display_name}</CardTitle><CardDescription className="font-mono text-xs">{machine.platform} / {machine.architecture}</CardDescription></div>
+                  <div><CardTitle className="font-heading text-base">{machine.display_name}</CardTitle><CardDescription className="flex items-center gap-2 font-mono text-xs">{machine.platform} / {machine.architecture}{machine.platform === "windows" && machine.architecture === "arm64" ? <Badge variant="outline">Beta</Badge> : null}</CardDescription></div>
                   <Badge variant={machine.online ? "success" : "outline"}>{machine.online ? "Online" : machine.state}</Badge>
                 </div>
               </CardHeader>
@@ -310,6 +311,17 @@ export default function MachinesPage() {
 						<MachineUpdateControl machine={machine} update={updates?.items.find((item) => item.machine_id === machine.id)} approvals={maintenance[machine.id] ?? []} busy={busy} onDecision={(approval, decision) => void decideMaintenance(machine.id, approval, decision)} />
               </CardContent>
               <CardFooter className="gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy === machine.id + "rename"}
+                  onClick={() => {
+                    setMachineToRename(machine);
+                    setMachineName(machine.display_name);
+                  }}
+                >
+                  <HugeiconsIcon icon={Edit02Icon} />Rename
+                </Button>
                 {machine.setup_mode === "host" ? <AlertDialog>
                   <AlertDialogTrigger render={<Button size="sm" variant="outline" disabled={busy === machine.id + "disconnect"} />}>
                     <HugeiconsIcon icon={LinkSquare02Icon} />Disconnect
@@ -349,27 +361,40 @@ export default function MachinesPage() {
           ))}
         </section>
 
-        <aside>
-          <Card className="rounded-lg">
-            <CardHeader><CardTitle className="font-heading text-base">Approve pairing</CardTitle><CardDescription>Confirm the code shown on the machine.</CardDescription></CardHeader>
-            <CardContent className="space-y-3">
-              <Input aria-label="Pairing code" value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="ABCD1234" className="font-mono" maxLength={32} />
-              {enrollment?.user_code ? <button className="text-left font-mono text-sm text-primary underline-offset-4 hover:underline" onClick={() => setCode(enrollment.user_code ?? "")}>Use {enrollment.user_code}</button> : null}
-            </CardContent>
-            <CardFooter className="grid grid-cols-2 gap-2">
-              <AlertDialog>
-                <AlertDialogTrigger render={<Button variant="outline" disabled={!code.trim() || busy === "deny"} />}><HugeiconsIcon icon={Cancel01Icon} />Deny</AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader><AlertDialogTitle>Deny this pairing?</AlertDialogTitle><AlertDialogDescription>No machine or seat will be created. This pairing code cannot be used again.</AlertDialogDescription></AlertDialogHeader>
-                  <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={() => void deny()}>Deny pairing</AlertDialogAction></AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              <Button disabled={!code.trim() || busy === "approve"} onClick={() => void approve()}>{busy === "approve" ? <Spinner /> : <HugeiconsIcon icon={LinkSquare02Icon} />}Approve</Button>
-            </CardFooter>
-          </Card>
-          <Button className="mt-3 w-full" variant="ghost" onClick={() => void refresh()}><HugeiconsIcon icon={RefreshIcon} />Refresh</Button>
-        </aside>
       </div>
+
+      <Dialog open={Boolean(machineToRename)} onOpenChange={(open) => { if (!open && busy !== machineToRename?.id + "rename") setMachineToRename(undefined); }}>
+        <DialogContent>
+          <form onSubmit={(event) => void submitRename(event)}>
+            <DialogHeader>
+              <DialogTitle>Rename machine</DialogTitle>
+              <DialogDescription>Use a clear name that helps you identify this machine.</DialogDescription>
+            </DialogHeader>
+            <DialogPanel>
+              <label className="grid gap-2 text-sm font-medium" htmlFor="machine-display-name">
+                Machine name
+                <Input
+                  id="machine-display-name"
+                  name="display_name"
+                  value={machineName}
+                  onChange={(event) => setMachineName(event.target.value)}
+                  maxLength={128}
+                  autoComplete="off"
+                  autoFocus
+                  required
+                />
+              </label>
+            </DialogPanel>
+            <DialogFooter>
+              <DialogClose render={<Button type="button" variant="outline" disabled={busy === machineToRename?.id + "rename"} />}>Cancel</DialogClose>
+              <Button type="submit" disabled={!machineName.trim() || machineName.trim() === machineToRename?.display_name || busy === machineToRename?.id + "rename"}>
+                {busy === machineToRename?.id + "rename" ? <Spinner /> : null}
+                Save name
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -399,9 +424,10 @@ function MachineUpdateControl({ machine, update, approvals, busy, onDecision }: 
 function AvailabilityControl({ machine, busy, onChange, onRetry }: { machine: Machine; busy: boolean; onChange: (mode: AvailabilityMode) => void; onRetry: () => void }) {
   const policy = machine.availability;
   const keepAwake = policy.desired_mode === "keep_awake";
+  const offline = !machine.online || policy.status === "offline";
   const drifted = policy.observed_version !== policy.desired_version || policy.observed_mode !== policy.desired_mode;
-  const variant = policy.status === "applied" && !drifted ? "success" : policy.status === "error" || policy.status === "unsupported" ? "error" : "warning";
-  const status = policy.status === "applied" && drifted ? "Pending" : stateLabel(policy.status);
+  const variant = offline ? "warning" : policy.status === "applied" && !drifted ? "success" : policy.status === "error" || policy.status === "unsupported" ? "error" : "warning";
+  const status = offline ? "Offline" : policy.status === "applied" && drifted ? "Pending" : stateLabel(policy.status);
   return (
     <div className="mt-4 space-y-2 border-t pt-4">
       <div className="flex items-center justify-between gap-4">
@@ -426,7 +452,7 @@ function AvailabilityControl({ machine, busy, onChange, onRetry }: { machine: Ma
           </AlertDialog>
         )}
       </div>
-      {policy.status === "offline" ? <p className="text-xs text-amber-700 dark:text-amber-400">Saved. The machine will apply this automatically after it reconnects.</p> : null}
+      {offline ? <p className="text-xs text-amber-700 dark:text-amber-400">Saved. The machine will apply this automatically after it reconnects.</p> : null}
       {policy.status === "unsupported" ? <p className="text-xs text-destructive">This host service cannot manage sleep. Update Paperboat on the machine, then retry.</p> : null}
       {policy.status === "error" ? <div className="flex items-center justify-between gap-3"><p className="text-xs text-destructive">The host service could not apply this setting. Run <code className="font-mono">pb doctor</code> locally; uninstall restores the original power settings.</p><Button size="sm" variant="outline" onClick={onRetry}><HugeiconsIcon icon={RefreshIcon} />Retry</Button></div> : null}
     </div>
@@ -434,10 +460,27 @@ function AvailabilityControl({ machine, busy, onChange, onRetry }: { machine: Ma
 }
 
 function EnrollmentPanel({ enrollment, busy, onCancel, onRetry }: { enrollment: MachineEnrollment | MachineEnrollmentStart; busy?: string; onCancel: () => void; onRetry: () => void }) {
-  const command = "bootstrap_command" in enrollment ? enrollment.bootstrap_command : "";
+  const bootstrapToken = "bootstrap_token" in enrollment ? enrollment.bootstrap_token : undefined;
+  const serverURL = "server_url" in enrollment ? enrollment.server_url : undefined;
   const retryable = ["cancelled", "expired", "denied", "failed_retryable"].includes(enrollment.state);
   const cancellable = ["awaiting_bootstrap", "awaiting_approval", "failed_retryable"].includes(enrollment.state);
   const variant = enrollmentVariant(enrollment.state);
+  const [role, setRole] = React.useState<"host" | "client">("host");
+  const [platform, setPlatform] = React.useState<"unix" | "windows">("unix");
+  const [hostname, setHostname] = React.useState("");
+  const command = enrollmentCommand(bootstrapToken, serverURL, platform, role, hostname);
+  const hostnameInvalid = hostname.trim() !== "" && !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(hostname.trim());
+
+  async function copyCommand() {
+    if (!command) return;
+    try {
+      await navigator.clipboard.writeText(command);
+      toast.success("One-shot enrollment command copied.");
+    } catch {
+      toast.error("Couldn't copy the PowerShell command.");
+    }
+  }
+
   return (
     <section aria-labelledby="enrollment-title" className="space-y-4 border-y py-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -450,21 +493,60 @@ function EnrollmentPanel({ enrollment, busy, onCancel, onRetry }: { enrollment: 
           {cancellable ? <Button size="sm" variant="ghost" disabled={busy === "cancel"} onClick={onCancel}><HugeiconsIcon icon={Cancel01Icon} />Cancel</Button> : null}
         </div>
       </div>
-      {command ? (
-        <div className="flex items-start gap-2 rounded-md bg-muted/60 p-3">
-          <code className="min-w-0 flex-1 overflow-x-auto whitespace-pre font-mono text-xs">{command}</code>
-          <Button size="icon-sm" variant="ghost" aria-label="Copy bootstrap command" onClick={() => void navigator.clipboard.writeText(command).then(() => toast.success("Bootstrap command copied."))}><HugeiconsIcon icon={Copy01Icon} /></Button>
-        </div>
+      {bootstrapToken && serverURL ? (
+        <section aria-labelledby="windows-enrollment-title" className="space-y-3 rounded-lg border p-4">
+          <div className="space-y-1">
+            <h3 id="windows-enrollment-title" className="font-heading text-base font-semibold">Install a machine</h3>
+            <p className="text-sm text-muted-foreground">Choose the machine role, optionally set a hostname, then paste one command. The installer detects the operating system and architecture and finishes setup automatically.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant={platform === "unix" ? "default" : "outline"} onClick={() => setPlatform("unix")}>Linux / macOS</Button>
+            <Button size="sm" variant={platform === "windows" ? "default" : "outline"} onClick={() => setPlatform("windows")}>Windows</Button>
+          </div>
+          <div className="flex flex-wrap gap-2 border-t pt-3">
+            <Button size="sm" variant={role === "host" ? "default" : "outline"} onClick={() => setRole("host")}>Host machine</Button>
+            <Button size="sm" variant={role === "client" ? "default" : "outline"} onClick={() => setRole("client")}>Client machine</Button>
+            <Input className="max-w-xs" value={hostname} onChange={(event) => setHostname(event.target.value)} placeholder="Hostname (optional)" aria-label="Hostname (optional)" />
+          </div>
+          {hostnameInvalid ? <p className="text-xs text-destructive">Use 1-63 letters, numbers, or hyphens. Do not start or end with a hyphen.</p> : null}
+          <div className="flex items-start gap-2 rounded-md bg-muted/60 p-3"><code className="min-w-0 flex-1 overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs">{command}</code><Button size="icon-sm" variant="ghost" aria-label="Copy one-shot enrollment command" onClick={() => void copyCommand()}><HugeiconsIcon icon={Copy01Icon} /></Button></div>
+          <p className="text-xs text-muted-foreground">The command is single-use and expires {formatTimestamp(enrollment.expires_at)}. Windows arm64 is beta; no feature is intentionally removed.</p>
+        </section>
       ) : null}
       {enrollment.requested_display_name ? (
         <dl className="grid gap-3 text-sm sm:grid-cols-3">
           <EnrollmentDetail label="User machine" value={enrollment.requested_display_name} />
-          <EnrollmentDetail label="Platform" value={[enrollment.platform, enrollment.architecture].filter(Boolean).join(" / ")} />
+          <EnrollmentDetail label="Platform" value={[enrollment.platform, enrollment.architecture, enrollment.platform === "windows" && enrollment.architecture === "arm64" ? "beta" : ""].filter(Boolean).join(" / ")} />
           <EnrollmentDetail label="Workspace scope" value={enrollment.workspace_root ?? "Pending"} mono />
         </dl>
       ) : null}
     </section>
   );
+}
+
+function enrollmentCommand(token: string | undefined, serverURL: string | undefined, platform: "unix" | "windows", role: "host" | "client", hostname: string) {
+  if (!token || !serverURL) return "";
+  const name = hostname.trim();
+  if (name && !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(name)) return "";
+  const escaped = (value: string) => value.replace(/'/g, "''");
+  const boundToken = bindEnrollmentMetadata(token, role, platform);
+  const parameter = name ? `${name}-${boundToken}` : boundToken;
+  if (platform === "unix") {
+    return `curl -fsSL 'https://get.pprbt.dev/install?p=${escaped(parameter)}' | bash`;
+  }
+  return `irm 'https://get.pprbt.dev/install?p=${escaped(parameter)}' | iex`;
+}
+
+function bindEnrollmentMetadata(token: string, role: "host" | "client", platform: "unix" | "windows") {
+  if (!/^[0-9A-Z]{26}$/.test(token)) return token;
+  return metadataCharacter(token[0], role === "host") + metadataCharacter(token[1], platform === "unix") + token.slice(2);
+}
+
+function metadataCharacter(character: string, even: boolean) {
+  const value = character >= "0" && character <= "9" ? character.charCodeAt(0) - 48 : character.charCodeAt(0) - 64;
+  if ((value % 2 === 0) === even) return character;
+  const next = value === 9 || value === 26 ? value - 1 : value + 1;
+  return character >= "0" && character <= "9" ? String.fromCharCode(48 + next) : String.fromCharCode(64 + next);
 }
 
 function EnrollmentDetail({ label, value, mono }: { label: string; value: string; mono?: boolean }) {

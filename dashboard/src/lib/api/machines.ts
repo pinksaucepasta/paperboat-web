@@ -1,4 +1,4 @@
-import { pbFetch } from "./client";
+import { pbDownload, pbFetch } from "./client";
 import type { AvailabilityMode, AvailabilityPolicy, FleetUpdateSummary, Machine, MachineEnrollment, MachineEnrollmentStart, MachineListResponse, MachineOverview, MaintenanceApproval, UpdateObservation } from "./types";
 
 export async function listMachines(): Promise<Machine[]> {
@@ -22,17 +22,17 @@ export function requestMaintenanceApproval(id: string, input: { action: "update"
 export function decideMaintenanceApproval(id: string, approvalID: string, decision: "approved" | "rejected"): Promise<MaintenanceApproval> {
   return pbFetch(`/v1/machines/${encodeURIComponent(id)}/maintenance-approvals/${encodeURIComponent(approvalID)}/${decision}`, { method: "POST" });
 }
-export function approveMachine(userCode: string): Promise<Machine> {
-  return pbFetch(`/v1/machines/pairings/${encodeURIComponent(userCode)}/approve`, { method: "POST" });
-}
-export function denyMachine(userCode: string): Promise<void> {
-  return pbFetch(`/v1/machines/pairings/${encodeURIComponent(userCode)}/deny`, { method: "POST" });
-}
 export function disconnectMachine(id: string): Promise<void> {
   return pbFetch(`/v1/machines/${encodeURIComponent(id)}/disconnect`, { method: "POST" });
 }
 export function deleteMachine(id: string): Promise<void> {
   return pbFetch(`/v1/machines/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+export function renameMachine(id: string, displayName: string): Promise<Machine> {
+  return pbFetch(`/v1/machines/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: { display_name: displayName },
+  });
 }
 export function setMachineAvailability(id: string, mode: AvailabilityMode, expectedVersion: number): Promise<AvailabilityPolicy> {
   return pbFetch(`/v1/machines/${encodeURIComponent(id)}/availability-policy`, {
@@ -40,8 +40,8 @@ export function setMachineAvailability(id: string, mode: AvailabilityMode, expec
     body: { mode, expected_version: expectedVersion },
   });
 }
-export function startMachineEnrollment(idempotencyKey: string): Promise<MachineEnrollmentStart> {
-  return pbFetch("/v1/machine-enrollments", { method: "POST", idempotencyKey });
+export function startMachineEnrollment(idempotencyKey: string, role = "host", shell = "posix"): Promise<MachineEnrollmentStart> {
+  return pbFetch("/v1/machine-enrollments", { method: "POST", idempotencyKey, body: { role, shell } });
 }
 export function getMachineEnrollment(id: string): Promise<MachineEnrollment> {
   return pbFetch(`/v1/machine-enrollments/${encodeURIComponent(id)}`);
@@ -49,6 +49,9 @@ export function getMachineEnrollment(id: string): Promise<MachineEnrollment> {
 export function cancelMachineEnrollment(id: string): Promise<void> {
   return pbFetch(`/v1/machine-enrollments/${encodeURIComponent(id)}/cancel`, { method: "POST" });
 }
-export function retryMachineEnrollment(id: string): Promise<MachineEnrollmentStart> {
-  return pbFetch(`/v1/machine-enrollments/${encodeURIComponent(id)}/retry`, { method: "POST" });
+export function retryMachineEnrollment(id: string, role = "host", shell = "posix"): Promise<MachineEnrollmentStart> {
+  return pbFetch(`/v1/machine-enrollments/${encodeURIComponent(id)}/retry`, { method: "POST", body: { role, shell } });
+}
+export function downloadMachineEnrollmentToken(path: string): Promise<Blob> {
+  return pbDownload(path);
 }
