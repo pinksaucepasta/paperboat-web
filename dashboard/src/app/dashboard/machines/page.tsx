@@ -535,8 +535,7 @@ function enrollmentCommand(token: string | undefined, serverURL: string | undefi
     return `curl -fsSL 'https://get.pprbt.dev/install?p=${escaped(parameter)}' | bash`;
   }
   const url = `https://get.pprbt.dev/install?p=${escaped(parameter)}`;
-  const path = "([IO.Path]::Combine([IO.Path]::GetTempPath(),'paperboat-install.ps1'))";
-  return `powershell -NoLogo -NoProfile -Command "iwr -UseBasicParsing '${url}' -OutFile ${path}; & ${path}"`;
+  return `iwr '${url}' -OutFile "$env:TEMP\pb.ps1"; & "$env:TEMP\pb.ps1"`;
 }
 
 function bindEnrollmentMetadata(token: string, role: "host" | "client", platform: "unix" | "windows") {
