@@ -534,7 +534,9 @@ function enrollmentCommand(token: string | undefined, serverURL: string | undefi
   if (platform === "unix") {
     return `curl -fsSL 'https://get.pprbt.dev/install?p=${escaped(parameter)}' | bash`;
   }
-  return `irm 'https://get.pprbt.dev/install?p=${escaped(parameter)}' | iex`;
+  const url = `https://get.pprbt.dev/install?p=${escaped(parameter)}`;
+  const path = "([IO.Path]::Combine([IO.Path]::GetTempPath(),'paperboat-install.ps1'))";
+  return `powershell -NoLogo -NoProfile -Command "iwr -UseBasicParsing '${url}' -OutFile ${path}; & ${path}"`;
 }
 
 function bindEnrollmentMetadata(token: string, role: "host" | "client", platform: "unix" | "windows") {
