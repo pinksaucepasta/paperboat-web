@@ -439,7 +439,7 @@ function AvailabilityControl({ machine, busy, onChange, onRetry }: { machine: Ma
           <Switch aria-label={`Allow ${machine.display_name} to sleep`} checked disabled={busy} onCheckedChange={(checked) => { if (!checked) onChange("allow_sleep"); }} />
         ) : (
           <AlertDialog>
-            <AlertDialogTrigger render={<Switch aria-label={`Keep ${machine.display_name} awake`} checked={false} disabled={busy} />} />
+            <AlertDialogTrigger nativeButton={false} render={<Switch aria-label={`Keep ${machine.display_name} awake`} checked={false} disabled={busy} />} />
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Keep {machine.display_name} awake?</AlertDialogTitle>
