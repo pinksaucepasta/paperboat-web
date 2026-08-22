@@ -36,7 +36,7 @@ export interface Machine {
   online: boolean;
   runtime_versions: Record<string, string>;
   setup_roles: Array<"interactive" | "host">;
-  setup_mode: "receive" | "session" | "host";
+  setup_mode: "client" | "host";
   capabilities: MachineCapabilities;
   machine_kind: "personal" | "hosted";
   public_identity_key: string;

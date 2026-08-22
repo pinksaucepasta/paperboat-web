@@ -52,7 +52,7 @@ function reset() {
     online: true,
     runtime_versions: {},
     setup_roles: ["interactive"],
-    setup_mode: "receive",
+    setup_mode: "client",
     capabilities: {
       file_receive: { configured: true, observed: true },
       preview_launch: { configured: false, observed: false },
