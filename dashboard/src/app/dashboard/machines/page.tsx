@@ -245,7 +245,7 @@ export default function MachinesPage() {
       <PageHeader
         eyebrow="Workspace"
         title="Machines"
-        description="Manage native Windows, macOS, and Linux machines that keep their workspace on your hardware. Windows amd64 is stable; Windows arm64 is beta."
+        description="Manage native Windows, macOS, and Linux machines that keep their workspace on your hardware."
         actions={
           <Button disabled={busy === "start" || overview?.available_seats === 0} onClick={() => void startEnrollment()}>
             {busy === "start" ? <Spinner /> : <HugeiconsIcon icon={Add01Icon} />}
@@ -293,7 +293,7 @@ export default function MachinesPage() {
             <Card key={machine.id} className="rounded-lg">
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
-                  <div><CardTitle className="font-heading text-base">{machine.display_name}</CardTitle><CardDescription className="flex items-center gap-2 font-mono text-xs">{machine.platform} / {machine.architecture}{machine.platform === "windows" && machine.architecture === "arm64" ? <Badge variant="outline">Beta</Badge> : null}</CardDescription></div>
+                  <div><CardTitle className="font-heading text-base">{machine.display_name}</CardTitle><CardDescription className="flex items-center gap-2 font-mono text-xs">{machine.platform} / {machine.architecture}</CardDescription></div>
                   <Badge variant={machine.online ? "success" : "outline"}>{machine.online ? "Online" : machine.state}</Badge>
                 </div>
               </CardHeader>
@@ -510,13 +510,13 @@ function EnrollmentPanel({ enrollment, busy, onCancel, onRetry }: { enrollment: 
           </div>
           {hostnameInvalid ? <p className="text-xs text-destructive">Use 1-63 letters, numbers, or hyphens. Do not start or end with a hyphen.</p> : null}
           <div className="flex items-start gap-2 rounded-md bg-muted/60 p-3"><code className="min-w-0 flex-1 overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs">{command}</code><Button size="icon-sm" variant="ghost" aria-label="Copy one-shot enrollment command" onClick={() => void copyCommand()}><HugeiconsIcon icon={Copy01Icon} /></Button></div>
-          <p className="text-xs text-muted-foreground">The command is single-use and expires {formatTimestamp(enrollment.expires_at)}. Windows arm64 is beta; no feature is intentionally removed.</p>
+          <p className="text-xs text-muted-foreground">The command is single-use and expires {formatTimestamp(enrollment.expires_at)}.</p>
         </section>
       ) : null}
       {enrollment.requested_display_name ? (
         <dl className="grid gap-3 text-sm sm:grid-cols-3">
           <EnrollmentDetail label="User machine" value={enrollment.requested_display_name} />
-          <EnrollmentDetail label="Platform" value={[enrollment.platform, enrollment.architecture, enrollment.platform === "windows" && enrollment.architecture === "arm64" ? "beta" : ""].filter(Boolean).join(" / ")} />
+          <EnrollmentDetail label="Platform" value={[enrollment.platform, enrollment.architecture].join(" / ")} />
           <EnrollmentDetail label="Workspace scope" value={enrollment.workspace_root ?? "Pending"} mono />
         </dl>
       ) : null}
