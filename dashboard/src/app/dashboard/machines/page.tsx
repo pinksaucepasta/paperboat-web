@@ -526,7 +526,11 @@ function EnrollmentPanel({ enrollment, busy, onCancel, onRetry }: { enrollment: 
 
 function enrollmentCommand(token: string | undefined, serverURL: string | undefined, platform: "unix" | "windows", role: "host" | "client", hostname: string) {
   if (!token || !serverURL) return "";
-  const name = hostname.trim();
+  // The release endpoint's enrollment parameter is a DNS label and is
+  // intentionally canonicalized to lowercase before it is sent over HTTP.
+  // Keep the generated command aligned with that contract even when a user
+  // enters a mixed-case Windows hostname.
+  const name = hostname.trim().toLowerCase();
   if (name && !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(name)) return "";
   const escaped = (value: string) => value.replace(/'/g, "''");
   const boundToken = bindEnrollmentMetadata(token, role, platform);
