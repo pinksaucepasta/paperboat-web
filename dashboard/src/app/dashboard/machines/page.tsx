@@ -145,7 +145,7 @@ export default function MachinesPage() {
   async function startEnrollment() {
     setBusy("start");
     try {
-      const result = await startMachineEnrollment(`dashboard-${crypto.randomUUID()}`);
+      const result = await startMachineEnrollment(`dashboard-${crypto.randomUUID()}`, role, platform === "windows" ? "powershell" : "posix");
       setEnrollment(result);
       sessionStorage.setItem(ACTIVE_ENROLLMENT_KEY, result.id);
       toast.success("Enrollment started.");
@@ -161,7 +161,7 @@ export default function MachinesPage() {
     setBusy(action);
     try {
       if (action === "retry") {
-        setEnrollment(await retryMachineEnrollment(enrollment.id));
+        setEnrollment(await retryMachineEnrollment(enrollment.id, role, platform === "windows" ? "powershell" : "posix"));
         toast.success("Enrollment restarted with new installation material.");
       } else {
         await cancelMachineEnrollment(enrollment.id);
