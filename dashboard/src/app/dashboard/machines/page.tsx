@@ -535,10 +535,11 @@ function enrollmentCommand(token: string | undefined, serverURL: string | undefi
   const escaped = (value: string) => value.replace(/'/g, "''");
   const boundToken = bindEnrollmentMetadata(token, role, platform);
   const parameter = name ? `${name}-${boundToken}` : boundToken;
+  const mode = role === "client" ? "client" : "host";
   if (platform === "unix") {
-    return `curl -fsSL 'https://get.pprbt.dev/install?p=${escaped(parameter)}' | bash`;
+    return `curl -fsSL 'https://get.pprbt.dev/install?p=${escaped(parameter)}&mode=${mode}' | bash`;
   }
-  const url = `https://get.pprbt.dev/install?p=${escaped(parameter)}`;
+  const url = `https://get.pprbt.dev/install?p=${escaped(parameter)}&mode=${mode}`;
   return `iwr '${url}' -OutFile "$env:TEMP\\pb.ps1"; & "$env:TEMP\\pb.ps1"`;
 }
 
