@@ -538,7 +538,7 @@ function enrollmentCommand(token: string | undefined, serverURL: string | undefi
   if (platform === "unix") {
     return `curl -fsSL 'https://get.pprbt.dev/install?p=${escaped(parameter)}' | bash`;
   }
-  const url = `https://get.pprbt.dev/install?p=${escaped(parameter)}&shell=powershell`;
+  const url = `https://get.pprbt.dev/install?p=${escaped(parameter)}`;
   return `powershell -c "irm '${url}' | iex"`;
 }
 
