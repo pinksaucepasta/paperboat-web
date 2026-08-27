@@ -477,7 +477,7 @@ function EnrollmentPanel({ enrollment, busy, onCancel, onRetry }: { enrollment: 
       await navigator.clipboard.writeText(command);
       toast.success("One-shot enrollment command copied.");
     } catch {
-      toast.error("Couldn't copy the PowerShell command.");
+      toast.error("Couldn't copy the Windows command.");
     }
   }
 
@@ -539,7 +539,7 @@ function enrollmentCommand(token: string | undefined, serverURL: string | undefi
     return `curl -fsSL 'https://get.pprbt.dev/install?p=${escaped(parameter)}' | bash`;
   }
   const url = `https://get.pprbt.dev/install?p=${escaped(parameter)}`;
-  return `iwr '${url}' -OutFile "$env:TEMP\\pb.ps1"; & "$env:TEMP\\pb.ps1"`;
+  return `powershell -c "irm '${url}' | iex"`;
 }
 
 function bindEnrollmentMetadata(token: string, role: "host" | "client", platform: "unix" | "windows") {
