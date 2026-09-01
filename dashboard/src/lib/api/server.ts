@@ -1,5 +1,7 @@
 import "server-only";
 
+import { relayResponse as relayResponseBase } from "./bff-transport";
+
 /**
  * Shared server-side helpers for talking to paperboat-server (the control plane).
  * The dashboard never exposes the server origin to the browser — all traffic goes
@@ -26,6 +28,11 @@ export const OAUTH_STATE_COOKIE = "paperboat_oauth_state";
 const SAFE_READ_ATTEMPTS = 3;
 const SAFE_READ_ATTEMPT_TIMEOUT_MS = 5_000;
 
+export interface FetchPaperboatOptions {
+  /** ENV ciphertext/CAS requests must never be retried by the BFF. */
+  noRetry?: boolean;
+}
+
 /**
  * Fetch the control plane. Safe reads retry bounded network failures because no
  * mutation can become uncertain. Mutations are attempted exactly once.
@@ -33,18 +40,26 @@ const SAFE_READ_ATTEMPT_TIMEOUT_MS = 5_000;
 export async function fetchPaperboatServer(
   input: Parameters<typeof fetch>[0],
   init?: Parameters<typeof fetch>[1],
+  options: FetchPaperboatOptions = {},
 ): Promise<Response> {
+  const requestHeaders =
+    input instanceof Request ? input.headers : new Headers(init?.headers);
   const method = (
     input instanceof Request ? input.method : (init?.method ?? "GET")
   ).toUpperCase();
   const safeRead = method === "GET" || method === "HEAD";
-  const attempts = safeRead ? SAFE_READ_ATTEMPTS : 1;
+  // An event stream is a long-lived read. It must not use the bounded request
+  // timeout or be retried after headers have been handed to the browser.
+  const eventStream =
+    requestHeaders.get("accept")?.toLowerCase().includes("text/event-stream") ?? false;
+  const attempts = options.noRetry ? 1 : safeRead && !eventStream ? SAFE_READ_ATTEMPTS : 1;
   let lastError: unknown;
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const attemptSignal = safeRead
-      ? AbortSignal.timeout(SAFE_READ_ATTEMPT_TIMEOUT_MS)
-      : undefined;
+    const attemptSignal =
+      !options.noRetry && safeRead && !eventStream
+        ? AbortSignal.timeout(SAFE_READ_ATTEMPT_TIMEOUT_MS)
+        : undefined;
     try {
       if (input instanceof Request) {
         const request = input.clone();
@@ -71,6 +86,9 @@ export const FORWARDED_REQUEST_HEADERS = [
   "x-csrf-token",
   "idempotency-key",
   "request-id",
+  "correlation-id",
+  "if-match",
+  "last-event-id",
   "authorization",
 ];
 
@@ -108,25 +126,13 @@ export function buildServerRequest(
  * login/logout cookie changes persist on the dashboard origin.
  */
 export function relayResponse(serverRes: Response, body: BodyInit | null): Response {
-  const headers = new Headers();
-  const contentType = serverRes.headers.get("content-type");
-  if (contentType) headers.set("content-type", contentType);
-  const requestId = serverRes.headers.get("request-id");
-  if (requestId) headers.set("request-id", requestId);
-
-  const res = new Response(body, { status: serverRes.status, headers });
-  // `getSetCookie` returns each Set-Cookie header separately (Node/undici).
-  for (const cookie of serverRes.headers.getSetCookie()) {
+  return relayResponseBase(serverRes, body, {
     // The production API correctly emits Secure cookies. A local HTTP
     // dashboard can only persist them during the explicitly enabled dev-login
     // workflow, so remove Secure in development only. Production and preview
     // builds always relay the cookie unchanged.
-    const relayedCookie =
+    stripSecureCookies:
       process.env.NODE_ENV === "development" &&
-      process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN === "true"
-        ? cookie.replace(/;\s*Secure(?=;|$)/gi, "")
-        : cookie;
-    res.headers.append("set-cookie", relayedCookie);
-  }
-  return res;
+      process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN === "true",
+  });
 }

@@ -54,6 +54,7 @@ export interface MachineCapabilityAvailability {
 export interface MachineCapabilities {
   file_receive: MachineCapabilityAvailability;
   preview_launch: MachineCapabilityAvailability;
+  environment_injection: MachineCapabilityAvailability;
   terminal_host: MachineCapabilityAvailability;
   codex_host: MachineCapabilityAvailability;
   session_host: MachineCapabilityAvailability;
@@ -121,25 +122,6 @@ export interface MaintenanceApproval {
   version: number;
   created_at: string;
   updated_at: string;
-}
-
-export interface Preview {
-  id: string;
-  environment_id: string;
-  project_id?: string;
-  resource_id?: string;
-  user_id?: string;
-  logical_name: string;
-  preview_key: string;
-  url: string;
-  target_port: number;
-  state: string;
-  environment_name: string;
-  environment_kind: "hosted" | "byod" | string;
-  owner_email: string;
-  expires_at?: string;
-  source_kind: "application" | "file" | "directory";
-  owner_mode: "runtime" | "foreground" | "detached";
 }
 
 export interface MachineOverview {

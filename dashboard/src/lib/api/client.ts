@@ -131,13 +131,26 @@ export interface RequestOptions {
   body?: unknown;
   /** Provide to override the auto-generated idempotency key on mutations. */
   idempotencyKey?: string;
+  /** Additional request headers, such as a resource's If-Match ETag. */
+  headers?: HeadersInit;
+  /** Browser cache policy for requests that must observe the latest state. */
+  cache?: RequestCache;
+  /** ENV E2EE requests must be attempted exactly once to preserve CAS bytes. */
+  noRetry?: boolean;
+  /** Observe response headers before the response body is consumed. */
+  onResponse?: (response: Response) => void;
 }
 
 /** Browser client — goes through the BFF proxy with cookies. */
 export async function pbFetch<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   const method = opts.method ?? "GET";
-  const headers = new Headers();
-  const init: RequestInit = { method, credentials: "same-origin", headers };
+  const headers = new Headers(opts.headers);
+  const init: RequestInit = {
+    method,
+    credentials: "same-origin",
+    headers,
+    cache: opts.cache,
+  };
 
   if (opts.body !== undefined) {
     headers.set("content-type", "application/json");
@@ -149,6 +162,7 @@ export async function pbFetch<T>(path: string, opts: RequestOptions = {}): Promi
     headers.set("idempotency-key", opts.idempotencyKey ?? idempotencyKey());
   }
   const res = await fetch(BFF_BASE + path, init);
+  opts.onResponse?.(res);
   return unwrap<T>(res);
 }
 

@@ -539,7 +539,7 @@ function enrollmentCommand(token: string | undefined, serverURL: string | undefi
     return `curl -fsSL 'https://get.pprbt.dev/install?p=${escaped(parameter)}' | bash`;
   }
   const url = `https://get.pprbt.dev/install?p=${escaped(parameter)}`;
-  return `powershell -c "iex (irm '${url}')"`;
+  return `powershell -c "$p=$env:TEMP+'\\pb.ps1';iwr '${url}' -OutFile $p;try{& $p}finally{rm $p -Force -ErrorAction SilentlyContinue}"`;
 }
 
 function bindEnrollmentMetadata(token: string, role: "host" | "client", platform: "unix" | "windows") {
