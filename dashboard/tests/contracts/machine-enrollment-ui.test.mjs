@@ -6,6 +6,7 @@ import {
   machineEnrollmentIdentity,
   mergeMachineEnrollmentStatus,
 } from "../../src/lib/machine-enrollment-ui.ts";
+import { enrollmentCommand } from "../../src/lib/machine-enrollment-command.ts";
 
 const generationOne = {
   id: "enr_test",
@@ -89,4 +90,22 @@ test("preserves a token when an older poll observes the already-current generati
 test("reads enrollment status without allowing a cached generation", () => {
   const source = fs.readFileSync(new URL("../../src/lib/api/machines.ts", import.meta.url), "utf8");
   assert.match(source, /export function getMachineEnrollment\(id: string\)[\s\S]*?cache: "no-store"/);
+});
+
+test("formats a native PowerShell one-shot Windows enrollment command", () => {
+  const command = enrollmentCommand("TOKEN'ABC", "https://api.example.test", "windows", " Victus-PC ");
+
+  assert.match(command, /^\$p=Join-Path /);
+  assert.doesNotMatch(command, /powershell\s+-c/i);
+  assert.match(command, /\$env:TEMP 'pb\.ps1'/);
+  assert.match(command, /iwr 'https:\/\/get\.pprbt\.dev\/install\?p=victus-pc-TOKEN''ABC' -OutFile \$p/);
+  assert.equal((command.match(/& \$p/g) ?? []).length, 1);
+  assert.match(command, /try\{& \$p\}finally\{rm \$p -Force -ErrorAction SilentlyContinue\}$/);
+});
+
+test("keeps the Unix enrollment command unchanged", () => {
+  assert.equal(
+    enrollmentCommand("one-shot-token", "https://api.example.test", "unix", ""),
+    "curl -fsSL 'https://get.pprbt.dev/install?p=one-shot-token' | bash",
+  );
 });

@@ -67,6 +67,7 @@ import type {
   MaintenanceApproval,
   AvailabilityMode,
 } from "@/lib/api/types";
+import { enrollmentCommand } from "@/lib/machine-enrollment-command";
 import { machineEnrollmentIdentity, mergeMachineEnrollmentStatus } from "@/lib/machine-enrollment-ui";
 import { Switch } from "@/components/ui/switch";
 
@@ -594,23 +595,6 @@ function EnrollmentPanel({ enrollment, busy, role, platform, onRoleChange, onPla
       ) : null}
     </section>
   );
-}
-
-function enrollmentCommand(token: string | undefined, serverURL: string | undefined, platform: "unix" | "windows", hostname: string) {
-  if (!token || !serverURL) return "";
-  // The release endpoint's enrollment parameter is a DNS label and is
-  // intentionally canonicalized to lowercase before it is sent over HTTP.
-  // Keep the generated command aligned with that contract even when a user
-  // enters a mixed-case Windows hostname.
-  const name = hostname.trim().toLowerCase();
-  if (name && !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(name)) return "";
-  const escaped = (value: string) => value.replace(/'/g, "''");
-  const parameter = name ? `${name}-${token}` : token;
-  if (platform === "unix") {
-    return `curl -fsSL 'https://get.pprbt.dev/install?p=${escaped(parameter)}' | bash`;
-  }
-  const url = `https://get.pprbt.dev/install?p=${escaped(parameter)}`;
-  return `powershell -c "$p=$env:TEMP+'\\pb.ps1';iwr '${url}' -OutFile $p;try{& $p}finally{rm $p -Force -ErrorAction SilentlyContinue}"`;
 }
 
 function EnrollmentDetail({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
