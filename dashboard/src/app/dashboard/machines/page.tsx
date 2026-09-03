@@ -67,6 +67,7 @@ import type {
   MaintenanceApproval,
   AvailabilityMode,
 } from "@/lib/api/types";
+import { machineEnrollmentIdentity, mergeMachineEnrollmentStatus } from "@/lib/machine-enrollment-ui";
 import { Switch } from "@/components/ui/switch";
 
 const ACTIVE_ENROLLMENT_KEY = "paperboat.active-machine-enrollment";
@@ -91,6 +92,10 @@ export default function MachinesPage() {
   const [busy, setBusy] = React.useState<string>();
   const [machineToRename, setMachineToRename] = React.useState<Machine>();
   const [machineName, setMachineName] = React.useState("");
+  const [role, setRole] = React.useState<"host" | "client">("host");
+  const [platform, setPlatform] = React.useState<"unix" | "windows">("unix");
+  const [enrollmentPollRevision, setEnrollmentPollRevision] = React.useState(0);
+  const enrollmentRequestSequence = React.useRef(0);
 
   const refresh = React.useCallback(async () => {
     setLoading(true);
@@ -119,59 +124,123 @@ export default function MachinesPage() {
   }, []);
 
   React.useEffect(() => {
+    const requestSequence = ++enrollmentRequestSequence.current;
+    let active = true;
     const initialRefresh = window.setTimeout(() => void refresh(), 0);
     const enrollmentID = sessionStorage.getItem(ACTIVE_ENROLLMENT_KEY);
     if (enrollmentID) {
       void getMachineEnrollment(enrollmentID)
-        .then(setEnrollment)
-        .catch(() => sessionStorage.removeItem(ACTIVE_ENROLLMENT_KEY));
+        .then((next) => {
+          if (active && requestSequence === enrollmentRequestSequence.current) setEnrollment(next);
+        })
+        .catch(() => {
+          if (active && requestSequence === enrollmentRequestSequence.current) sessionStorage.removeItem(ACTIVE_ENROLLMENT_KEY);
+        });
     }
-    return () => window.clearTimeout(initialRefresh);
+    return () => {
+      active = false;
+      window.clearTimeout(initialRefresh);
+    };
   }, [refresh]);
 
+  const enrollmentID = enrollment?.id;
+  const enrollmentGeneration = enrollment?.generation;
+  const enrollmentState = enrollment?.state;
+  const enrollmentKey = enrollment ? machineEnrollmentIdentity(enrollment) : undefined;
+
   React.useEffect(() => {
-    if (!enrollment || !POLLED_STATES.has(enrollment.state)) return;
+    if (!enrollmentID || enrollmentGeneration === undefined || !enrollmentState || !POLLED_STATES.has(enrollmentState)) return;
+    const expected = { id: enrollmentID, generation: enrollmentGeneration };
+    const requestSequence = enrollmentRequestSequence.current;
+    let active = true;
     const timer = window.setInterval(() => {
-      void getMachineEnrollment(enrollment.id)
+      void getMachineEnrollment(expected.id)
         .then((next) => {
-          setEnrollment((current) => current?.id === enrollment.id ? { ...current, ...next } : current);
+          if (!active || requestSequence !== enrollmentRequestSequence.current) return;
+          if (next.id !== expected.id || next.generation < expected.generation) return;
+          setEnrollment((current) => mergeMachineEnrollmentStatus(current, next, expected));
           if (next.state === "ready") void refresh();
         })
-        .catch((error) => toast.error("Enrollment status is unavailable.", { description: errorMessage(error, "Retry shortly.") }));
+        .catch((error) => {
+          if (active && requestSequence === enrollmentRequestSequence.current) {
+            toast.error("Enrollment status is unavailable.", { description: errorMessage(error, "Retry shortly.") });
+          }
+        });
     }, 3000);
-    return () => window.clearInterval(timer);
-  }, [enrollment, refresh]);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [enrollmentID, enrollmentGeneration, enrollmentState, enrollmentPollRevision, refresh]);
+
+  function restartEnrollmentObservation() {
+    const requestSequence = ++enrollmentRequestSequence.current;
+    setEnrollmentPollRevision((revision) => revision + 1);
+    const persistedID = sessionStorage.getItem(ACTIVE_ENROLLMENT_KEY);
+    if (!persistedID || persistedID === enrollmentID) return;
+    void getMachineEnrollment(persistedID)
+      .then((next) => {
+        if (requestSequence === enrollmentRequestSequence.current) setEnrollment(next);
+      })
+      .catch(() => {
+        if (requestSequence === enrollmentRequestSequence.current) sessionStorage.removeItem(ACTIVE_ENROLLMENT_KEY);
+      });
+  }
 
   async function startEnrollment() {
+    if (busy === "start" || busy === "retry" || busy === "cancel") return;
+    const requestSequence = ++enrollmentRequestSequence.current;
+    const requestedRole = role;
+    const requestedShell = platform === "windows" ? "powershell" : "posix";
     setBusy("start");
     try {
-      const result = await startMachineEnrollment(`dashboard-${crypto.randomUUID()}`);
+      const result = await startMachineEnrollment(`dashboard-${crypto.randomUUID()}`, requestedRole, requestedShell);
+      if (requestSequence !== enrollmentRequestSequence.current) return;
       setEnrollment(result);
       sessionStorage.setItem(ACTIVE_ENROLLMENT_KEY, result.id);
       toast.success("Enrollment started.");
     } catch (error) {
+      if (requestSequence !== enrollmentRequestSequence.current) return;
+      restartEnrollmentObservation();
       toast.error("Couldn't start enrollment.", { description: errorMessage(error, "Try again.") });
     } finally {
-      setBusy(undefined);
+      setBusy((current) => current === "start" ? undefined : current);
     }
   }
 
   async function updateEnrollment(action: "retry" | "cancel") {
-    if (!enrollment) return;
+    if (!enrollment || busy === "start" || busy === "retry" || busy === "cancel") return;
+    const target = enrollment;
+    const expected = machineEnrollmentIdentity(target);
+    const requestSequence = ++enrollmentRequestSequence.current;
+    const requestedRole = role;
+    const requestedShell = platform === "windows" ? "powershell" : "posix";
     setBusy(action);
     try {
       if (action === "retry") {
-        setEnrollment(await retryMachineEnrollment(enrollment.id));
+        const result = await retryMachineEnrollment(target.id, requestedRole, requestedShell);
+        if (requestSequence !== enrollmentRequestSequence.current) return;
+        if (result.id !== expected.id || result.generation <= expected.generation) {
+          throw new Error("Enrollment retry returned an unexpected generation.");
+        }
+        setEnrollment((current) => current && current.id === result.id && current.generation <= result.generation ? result : current);
         toast.success("Enrollment restarted with new installation material.");
       } else {
-        await cancelMachineEnrollment(enrollment.id);
-        setEnrollment(await getMachineEnrollment(enrollment.id));
+        await cancelMachineEnrollment(target.id);
+        const next = await getMachineEnrollment(target.id);
+        if (requestSequence !== enrollmentRequestSequence.current) return;
+        if (next.id !== expected.id || next.generation < expected.generation) {
+          throw new Error("Enrollment cancellation returned an unexpected generation.");
+        }
+        setEnrollment((current) => mergeMachineEnrollmentStatus(current, next, expected));
         toast.success("Enrollment cancelled.");
       }
     } catch (error) {
+      if (requestSequence !== enrollmentRequestSequence.current) return;
+      restartEnrollmentObservation();
       toast.error(`Couldn't ${action} enrollment.`, { description: errorMessage(error, "Refresh the enrollment state and try again.") });
     } finally {
-      setBusy(undefined);
+      setBusy((current) => current === action ? undefined : current);
     }
   }
 
@@ -256,8 +325,13 @@ export default function MachinesPage() {
 
       {enrollment ? (
         <EnrollmentPanel
+          key={enrollmentKey ? `${enrollmentKey.id}:${enrollmentKey.generation}` : undefined}
           enrollment={enrollment}
           busy={busy}
+          role={role}
+          platform={platform}
+          onRoleChange={setRole}
+          onPlatformChange={setPlatform}
           onCancel={() => void updateEnrollment("cancel")}
           onRetry={() => void updateEnrollment("retry")}
         />
@@ -459,16 +533,14 @@ function AvailabilityControl({ machine, busy, onChange, onRetry }: { machine: Ma
   );
 }
 
-function EnrollmentPanel({ enrollment, busy, onCancel, onRetry }: { enrollment: MachineEnrollment | MachineEnrollmentStart; busy?: string; onCancel: () => void; onRetry: () => void }) {
+function EnrollmentPanel({ enrollment, busy, role, platform, onRoleChange, onPlatformChange, onCancel, onRetry }: { enrollment: MachineEnrollment | MachineEnrollmentStart; busy?: string; role: "host" | "client"; platform: "unix" | "windows"; onRoleChange: (role: "host" | "client") => void; onPlatformChange: (platform: "unix" | "windows") => void; onCancel: () => void; onRetry: () => void }) {
   const bootstrapToken = "bootstrap_token" in enrollment ? enrollment.bootstrap_token : undefined;
   const serverURL = "server_url" in enrollment ? enrollment.server_url : undefined;
   const retryable = ["cancelled", "expired", "denied", "failed_retryable"].includes(enrollment.state);
   const cancellable = ["awaiting_bootstrap", "awaiting_approval", "failed_retryable"].includes(enrollment.state);
   const variant = enrollmentVariant(enrollment.state);
-  const [role, setRole] = React.useState<"host" | "client">("host");
-  const [platform, setPlatform] = React.useState<"unix" | "windows">("unix");
   const [hostname, setHostname] = React.useState("");
-  const command = enrollmentCommand(bootstrapToken, serverURL, platform, role, hostname);
+  const command = enrollmentCommand(bootstrapToken, serverURL, platform, hostname);
   const hostnameInvalid = hostname.trim() !== "" && !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(hostname.trim());
 
   async function copyCommand() {
@@ -500,12 +572,12 @@ function EnrollmentPanel({ enrollment, busy, onCancel, onRetry }: { enrollment: 
             <p className="text-sm text-muted-foreground">Choose the machine role, optionally set a hostname, then paste one command. The installer detects the operating system and architecture and finishes setup automatically.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant={platform === "unix" ? "default" : "outline"} onClick={() => setPlatform("unix")}>Linux / macOS</Button>
-            <Button size="sm" variant={platform === "windows" ? "default" : "outline"} onClick={() => setPlatform("windows")}>Windows</Button>
+            <Button size="sm" variant={platform === "unix" ? "default" : "outline"} onClick={() => onPlatformChange("unix")}>Linux / macOS</Button>
+            <Button size="sm" variant={platform === "windows" ? "default" : "outline"} onClick={() => onPlatformChange("windows")}>Windows</Button>
           </div>
           <div className="flex flex-wrap gap-2 border-t pt-3">
-            <Button size="sm" variant={role === "host" ? "default" : "outline"} onClick={() => setRole("host")}>Host machine</Button>
-            <Button size="sm" variant={role === "client" ? "default" : "outline"} onClick={() => setRole("client")}>Client machine</Button>
+            <Button size="sm" variant={role === "host" ? "default" : "outline"} onClick={() => onRoleChange("host")}>Host machine</Button>
+            <Button size="sm" variant={role === "client" ? "default" : "outline"} onClick={() => onRoleChange("client")}>Client machine</Button>
             <Input className="max-w-xs" value={hostname} onChange={(event) => setHostname(event.target.value)} placeholder="Hostname (optional)" aria-label="Hostname (optional)" />
           </div>
           {hostnameInvalid ? <p className="text-xs text-destructive">Use 1-63 letters, numbers, or hyphens. Do not start or end with a hyphen.</p> : null}
@@ -524,7 +596,7 @@ function EnrollmentPanel({ enrollment, busy, onCancel, onRetry }: { enrollment: 
   );
 }
 
-function enrollmentCommand(token: string | undefined, serverURL: string | undefined, platform: "unix" | "windows", role: "host" | "client", hostname: string) {
+function enrollmentCommand(token: string | undefined, serverURL: string | undefined, platform: "unix" | "windows", hostname: string) {
   if (!token || !serverURL) return "";
   // The release endpoint's enrollment parameter is a DNS label and is
   // intentionally canonicalized to lowercase before it is sent over HTTP.
@@ -533,25 +605,12 @@ function enrollmentCommand(token: string | undefined, serverURL: string | undefi
   const name = hostname.trim().toLowerCase();
   if (name && !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(name)) return "";
   const escaped = (value: string) => value.replace(/'/g, "''");
-  const boundToken = bindEnrollmentMetadata(token, role, platform);
-  const parameter = name ? `${name}-${boundToken}` : boundToken;
+  const parameter = name ? `${name}-${token}` : token;
   if (platform === "unix") {
     return `curl -fsSL 'https://get.pprbt.dev/install?p=${escaped(parameter)}' | bash`;
   }
   const url = `https://get.pprbt.dev/install?p=${escaped(parameter)}`;
   return `powershell -c "$p=$env:TEMP+'\\pb.ps1';iwr '${url}' -OutFile $p;try{& $p}finally{rm $p -Force -ErrorAction SilentlyContinue}"`;
-}
-
-function bindEnrollmentMetadata(token: string, role: "host" | "client", platform: "unix" | "windows") {
-  if (!/^[0-9A-Z]{26}$/.test(token)) return token;
-  return metadataCharacter(token[0], role === "host") + metadataCharacter(token[1], platform === "unix") + token.slice(2);
-}
-
-function metadataCharacter(character: string, even: boolean) {
-  const value = character >= "0" && character <= "9" ? character.charCodeAt(0) - 48 : character.charCodeAt(0) - 64;
-  if ((value % 2 === 0) === even) return character;
-  const next = value === 9 || value === 26 ? value - 1 : value + 1;
-  return character >= "0" && character <= "9" ? String.fromCharCode(48 + next) : String.fromCharCode(64 + next);
 }
 
 function EnrollmentDetail({ label, value, mono }: { label: string; value: string; mono?: boolean }) {

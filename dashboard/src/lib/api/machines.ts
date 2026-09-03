@@ -44,7 +44,7 @@ export function startMachineEnrollment(idempotencyKey: string, role = "host", sh
   return pbFetch("/v1/machine-enrollments", { method: "POST", idempotencyKey, body: { role, shell } });
 }
 export function getMachineEnrollment(id: string): Promise<MachineEnrollment> {
-  return pbFetch(`/v1/machine-enrollments/${encodeURIComponent(id)}`);
+  return pbFetch(`/v1/machine-enrollments/${encodeURIComponent(id)}`, { cache: "no-store" });
 }
 export function cancelMachineEnrollment(id: string): Promise<void> {
   return pbFetch(`/v1/machine-enrollments/${encodeURIComponent(id)}/cancel`, { method: "POST" });
