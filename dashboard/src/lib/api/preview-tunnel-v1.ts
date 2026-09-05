@@ -6,8 +6,8 @@
  * BFF, keeps one correlation ID for a workflow, and never accepts reusable
  * credentials in a response.
  *
- * Source of truth: contracts/preview-tunnel-v1/contracts.md and
- * contracts/preview-tunnel-v1/schemas/resources.schema.json.
+ * Verify changes against the server API and repository-local preview/tunnel
+ * fixtures in testdata/contracts/preview-tunnel-v1.
  */
 
 export const PREVIEW_TUNNEL_SCHEMA = "paperboat.preview-tunnel/v1" as const;
