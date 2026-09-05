@@ -25,5 +25,5 @@ export function enrollmentCommand(
   // This is pasted into PowerShell. Do not wrap it in another double-quoted
   // `powershell -c`: the outer shell would expand $p and $env:TEMP before the
   // child parses the command, corrupting the bootstrap before it downloads.
-  return `$p=Join-Path $env:TEMP 'pb.ps1';iwr '${url}' -OutFile $p;try{& $p}finally{rm $p -Force -ErrorAction SilentlyContinue}`;
+  return `$p=Join-Path $env:TEMP 'pb.ps1';try{iwr '${url}' -OutFile $p -ErrorAction Stop;& $p;if($LASTEXITCODE -ne 0){throw "Paperboat installation failed (exit $LASTEXITCODE)."}}finally{rm $p -Force -ErrorAction SilentlyContinue}`;
 }

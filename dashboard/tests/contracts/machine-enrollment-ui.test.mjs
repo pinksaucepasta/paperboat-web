@@ -100,7 +100,9 @@ test("formats a native PowerShell one-shot Windows enrollment command", () => {
   assert.match(command, /\$env:TEMP 'pb\.ps1'/);
   assert.match(command, /iwr 'https:\/\/get\.pprbt\.dev\/install\?p=victus-pc-TOKEN''ABC' -OutFile \$p/);
   assert.equal((command.match(/& \$p/g) ?? []).length, 1);
-  assert.match(command, /try\{& \$p\}finally\{rm \$p -Force -ErrorAction SilentlyContinue\}$/);
+  assert.match(command, /try\{iwr .* -OutFile \$p -ErrorAction Stop;& \$p;/);
+  assert.match(command, /if\(\$LASTEXITCODE -ne 0\)\{throw "Paperboat installation failed/);
+  assert.match(command, /finally\{rm \$p -Force -ErrorAction SilentlyContinue\}$/);
 });
 
 test("keeps the Unix enrollment command unchanged", () => {
